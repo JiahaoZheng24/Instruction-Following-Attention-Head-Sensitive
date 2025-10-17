@@ -1,0 +1,3 @@
+tag,ISI,avg4,drop,pearson_r_vs_drop,pearson_p_vs_drop
+fp16,0.0,0.758962331059367,0.0,,
+gptq4,0.0004935727338306606,,,,

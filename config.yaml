@@ -1,0 +1,29 @@
+tokenizer:
+  use_fast: true
+  padding_side: "left"
+  truncation_side: "left"
+  max_length: 4096
+
+select_prompts:
+  keyword_any:
+    - "two words"
+    - "start with"
+    - "json"
+    - "regex"
+    - "format"
+    - "no explanation"
+    - "only output"
+    - "do not explain"
+    - "output only"
+  min_len: 30
+  max_len: 1200
+
+instruction_rules:
+  regex_spans:
+    - "two words"
+    - "start with"
+    - "json"
+    - "format"
+    - "only output.*"
+    - "no explanation"
+    - "do not explain"
