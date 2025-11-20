@@ -1,0 +1,10 @@
+model,category,num_prompts,mean_attention,std_attention,max_attention,min_attention
+gptq4,bullet_points,5,0.0034782235,0.0030956494,0.025168609,0.0
+gptq4,first_word,1,0.0,0.0,0.0,0.0
+gptq4,json_format,5,0.012446615,0.009454998,0.072955325,0.0
+gptq4,no_explanation,1,0.0,0.0,0.0,0.0
+gptq4,only_output,1,0.0,0.0,0.0,0.0
+gptq4,regex_or_format,5,0.007897003,0.0054016216,0.033694077,0.0
+gptq4,start_with,5,0.0063221552,0.006022456,0.03142395,0.0
+gptq4,two_words,1,0.0,0.0,0.0,0.0
+gptq4,word_limit,5,0.0012654318,0.0011513546,0.009667968,0.0

@@ -21,13 +21,19 @@ CONDA_ENV="IFEval"
 # ---- your actual files ----
 SAMPLES_JSONL="/users/jzheng7/ifattn/selected_prompts.jsonl"   # 已经生成好的样本文件
 FP16_MODEL_ID="Qwen/Qwen2.5-7B-Instruct"                     # HuggingFace 模型ID
-GPTQ_MODEL_PATH="/store01/yshi4/Quant_Lib/quantized_models_gptq/quantized_Qwen_Qwen2.5-7B-Instruct_4bit"     # 如果没有可留空 ""
-AWQ_MODEL_PATH=""       # 如果没有可留空 ""
+
+# GPTQ模型路径 (不同bit)
+GPTQ2_MODEL_PATH="/store01/yshi4/Quant_Lib/quantized_models_gptq/quantized_Qwen_Qwen2.5-7B-Instruct_2bit"
+GPTQ3_MODEL_PATH="/store01/yshi4/Quant_Lib/quantized_models_gptq/quantized_Qwen_Qwen2.5-7B-Instruct_3bit"
+GPTQ4_MODEL_PATH="/store01/yshi4/Quant_Lib/quantized_models_gptq/quantized_Qwen_Qwen2.5-7B-Instruct_4bit"
+GPTQ8_MODEL_PATH="/store01/yshi4/Quant_Lib/quantized_models_gptq/quantized_Qwen_Qwen2.5-7B-Instruct_8bit"
 
 # lm-eval results.json 路径
 FP16_RESULTS_JSON="/users/jzheng7/result/ifeval/qwen/Qwen__Qwen2.5-7B-Instruct/results_2025-10-09T13-58-12.528717.json"
-GPTQ_RESULTS_JSON="/users/jzheng7/result/ifeval/qwen/__store01__yshi4__Quant_Lib__quantized_models_gptq__quantized_Qwen_Qwen2.5-7B-Instruct_4bit/results_2025-10-09T13-57-56.919923.json"
-AWQ_RESULTS_JSON="/users/jzheng7/result/ifeval/qwen/Qwen__Qwen2.5-7B-Instruct-AWQ/results_2025-10-09T14-34-11.060643.json"
+GPTQ2_RESULTS_JSON="/users/jzheng7/result/ifeval/qwen/__store01__yshi4__Quant_Lib__quantized_models_gptq__quantized_Qwen_Qwen2.5-7B-Instruct_2bit/results_2025-10-22T15-55-18.912810.json"
+GPTQ3_RESULTS_JSON="/users/jzheng7/result/ifeval/qwen/__store01__yshi4__Quant_Lib__quantized_models_gptq__quantized_Qwen_Qwen2.5-7B-Instruct_3bit/results_2025-10-18T02-53-19.455189.json"
+GPTQ4_RESULTS_JSON="/users/jzheng7/result/ifeval/qwen/__store01__yshi4__Quant_Lib__quantized_models_gptq__quantized_Qwen_Qwen2.5-7B-Instruct_4bit/results_2025-10-14T16-06-35.354326.json"
+GPTQ8_RESULTS_JSON="/users/jzheng7/result/ifeval/qwen/__store01__yshi4__Quant_Lib__quantized_models_gptq__quantized_Qwen_Qwen2.5-7B-Instruct_8bit/results_2025-10-22T15-46-23.674011.json"
 
 TOPK=10   # 样本数（你生成的就是10条）
 
@@ -38,8 +44,8 @@ echo "[IFATTN] Activate conda: $CONDA_ENV"
 source ~/.bashrc 2>/dev/null || true
 conda activate "$CONDA_ENV"
 
-pip install -U --no-input torch transformers accelerate einops matplotlib numpy scipy pandas tqdm pyyaml
-pip install -U --no-input auto-gptq optimum autoawq || true
+#pip install -U --no-input torch transformers accelerate einops matplotlib numpy scipy pandas tqdm pyyaml
+#pip install -U --no-input auto-gptq optimum autoawq || true
 
 export HF_HUB_ENABLE_HF_TRANSFER=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
@@ -54,7 +60,7 @@ fi
 echo "[OK] Using selected prompts: $SAMPLES_JSONL"
 
 #############################
-# 3) Dump attentions (FP16 / GPTQ / AWQ)
+# 3) Dump attentions (FP16 / GPTQ 2/3/4/8 bit)
 #############################
 echo "[IFATTN] Dump FP16 attentions"
 python "$BASE_DIR/dump_attn.py" \
@@ -63,20 +69,38 @@ python "$BASE_DIR/dump_attn.py" \
   --prompts_jsonl "$SAMPLES_JSONL" \
   --out_dir "$ARTI_DIR"
 
-if [[ -n "$GPTQ_MODEL_PATH" ]]; then
-  echo "[IFATTN] Dump GPTQ attentions"
+if [[ -n "$GPTQ2_MODEL_PATH" && -d "$GPTQ2_MODEL_PATH" ]]; then
+  echo "[IFATTN] Dump GPTQ-2bit attentions"
   python "$BASE_DIR/dump_attn.py" \
-    --model_id "$GPTQ_MODEL_PATH" \
+    --model_id "$GPTQ2_MODEL_PATH" \
+    --run_tag "gptq2" \
+    --prompts_jsonl "$SAMPLES_JSONL" \
+    --out_dir "$ARTI_DIR"
+fi
+
+if [[ -n "$GPTQ3_MODEL_PATH" && -d "$GPTQ3_MODEL_PATH" ]]; then
+  echo "[IFATTN] Dump GPTQ-3bit attentions"
+  python "$BASE_DIR/dump_attn.py" \
+    --model_id "$GPTQ3_MODEL_PATH" \
+    --run_tag "gptq3" \
+    --prompts_jsonl "$SAMPLES_JSONL" \
+    --out_dir "$ARTI_DIR"
+fi
+
+if [[ -n "$GPTQ4_MODEL_PATH" && -d "$GPTQ4_MODEL_PATH" ]]; then
+  echo "[IFATTN] Dump GPTQ-4bit attentions"
+  python "$BASE_DIR/dump_attn.py" \
+    --model_id "$GPTQ4_MODEL_PATH" \
     --run_tag "gptq4" \
     --prompts_jsonl "$SAMPLES_JSONL" \
     --out_dir "$ARTI_DIR"
 fi
 
-if [[ -n "$AWQ_MODEL_PATH" ]]; then
-  echo "[IFATTN] Dump AWQ attentions"
+if [[ -n "$GPTQ8_MODEL_PATH" && -d "$GPTQ8_MODEL_PATH" ]]; then
+  echo "[IFATTN] Dump GPTQ-8bit attentions"
   python "$BASE_DIR/dump_attn.py" \
-    --model_id "$AWQ_MODEL_PATH" \
-    --run_tag "awq4" \
+    --model_id "$GPTQ8_MODEL_PATH" \
+    --run_tag "gptq8" \
     --prompts_jsonl "$SAMPLES_JSONL" \
     --out_dir "$ARTI_DIR"
 fi
@@ -90,11 +114,21 @@ rm -f "$IFCSV"
 if [[ -f "$FP16_RESULTS_JSON" ]]; then
   python "$BASE_DIR/parse_ifeval.py" --results_json "$FP16_RESULTS_JSON" --out_csv "$IFCSV" --tag "fp16"
 fi
-if [[ -f "$GPTQ_RESULTS_JSON" ]]; then
-  python "$BASE_DIR/parse_ifeval.py" --results_json "$GPTQ_RESULTS_JSON" --out_csv "$IFCSV" --tag "gptq4"
+
+if [[ -f "$GPTQ2_RESULTS_JSON" ]]; then
+  python "$BASE_DIR/parse_ifeval.py" --results_json "$GPTQ2_RESULTS_JSON" --out_csv "$IFCSV" --tag "gptq2"
 fi
-if [[ -f "$AWQ_RESULTS_JSON" ]]; then
-  python "$BASE_DIR/parse_ifeval.py" --results_json "$AWQ_RESULTS_JSON" --out_csv "$IFCSV" --tag "awq4"
+
+if [[ -f "$GPTQ3_RESULTS_JSON" ]]; then
+  python "$BASE_DIR/parse_ifeval.py" --results_json "$GPTQ3_RESULTS_JSON" --out_csv "$IFCSV" --tag "gptq3"
+fi
+
+if [[ -f "$GPTQ4_RESULTS_JSON" ]]; then
+  python "$BASE_DIR/parse_ifeval.py" --results_json "$GPTQ4_RESULTS_JSON" --out_csv "$IFCSV" --tag "gptq4"
+fi
+
+if [[ -f "$GPTQ8_RESULTS_JSON" ]]; then
+  python "$BASE_DIR/parse_ifeval.py" --results_json "$GPTQ8_RESULTS_JSON" --out_csv "$IFCSV" --tag "gptq8"
 fi
 
 #############################
@@ -111,5 +145,14 @@ python "$BASE_DIR/compute_metrics.py" \
 python "$BASE_DIR/viz.py" \
   --attn_glob "$ARTI_DIR/attn_*.npz" \
   --out_dir "$ARTI_DIR"
+
+#############################
+# 7) Analyze by Instruction Type
+#############################
+echo "[IFATTN] Analyzing by instruction type"
+python "$BASE_DIR/analyze_by_instruction_type.py" \
+  --prompts_jsonl "$SAMPLES_JSONL" \
+  --attn_glob "$ARTI_DIR/attn_*.npz" \
+  --out_dir "$ARTI_DIR/by_instruction_type"
 
 echo "[IFATTN] ✅ All done. Check outputs in: $ARTI_DIR"
