@@ -1,81 +1,227 @@
+# Attention Compensation for Quantized Models
 
-# IF-Attention Analysis (FP16 vs Quantized)
+This repository contains code to test whether **attention compensation** can repair instruction-following degradation in quantized language models.
 
-This mini-repo gives you **end-to-end code and a reproducible workflow** to:
-1) Select *instruction-constrained* IFEval prompts (e.g., "use two words", "start with", "JSON").
-2) Dump **per-layer, per-head attentions** targeted at *instruction tokens* for **FP16** and **quantized** models (GPTQ/AWQ).
-3) Compute deltas/indices (e.g., **Instruction Sensitivity Index, ISI**) and correlate with **IFEval score drops**.
-4) Visualize heatmaps and summary plots.
+## 📋 Overview
 
-It assumes your environment can load your local models (no internet). Model identifiers can be either HF IDs or local folders.
+**Problem:** Quantization (4-bit, 3-bit) degrades instruction-following capabilities.
 
-> Your uploaded IFEval outputs referenced below:  
-> - `samples_ifeval_2025-10-09T13-58-12.528717.jsonl`  
-> - `results_2025-10-09T13-58-12.528717.json`
+**Hypothesis:** Degradation is caused by attention weight changes in critical heads.
 
----
+**Solution:** Artificially boost attention weights on degraded heads during inference.
 
-## Quickstart
+## 🚀 Quick Start
 
+### Prerequisites
+
+1. **Environment setup** (one-time):
+   ```bash
+   conda create -n attention python=3.10
+   conda activate attention
+   pip install torch transformers accelerate auto-gptq optimum
+   pip install pandas numpy scipy matplotlib tqdm pyyaml
+   ```
+
+2. **Prepare data**:
+   - Run IFEval benchmark on FP16 model → `fp16_samples.jsonl`
+   - Run IFEval benchmark on quantized model → `quant_samples.jsonl`
+
+### Running Experiments
+
+**Option 1: Direct execution**
 ```bash
-# 0) (Optional) create env
-conda create -n ifattn python=3.10 -y && conda activate ifattn
+# Edit configuration in the script
+vim run_compensation_experiment.sh
 
-# 1) Install deps (GPU recommended)
-pip install -U torch transformers accelerate einops matplotlib numpy scipy pandas tqdm pyyaml
-
-# If you will load GPTQ or AWQ directly:
-pip install -U auto-gptq optimum autoawq  # (whichever you use; some envs use autoawq, some awq)
-# In some stacks: pip install -U awq
-
-# 2) Edit config
-vim config.yaml
-# - set paths/ids for FP16, GPTQ, AWQ
-# - (optional) add keyword rules
-
-# 3) Select instruction-constrained prompts from your IFEval samples
-python select_prompts.py   --samples_jsonl "/mnt/data/samples_ifeval_2025-10-09T13-58-12.528717.jsonl"   --out_jsonl "artifacts/selected_prompts.jsonl"   --top_k 10
-
-# 4) Dump attentions for each model (FP16, GPTQ, AWQ). Example:
-python dump_attn.py --model_id "Qwen/Qwen2.5-7B-Instruct" --run_tag "fp16"   --prompts_jsonl "artifacts/selected_prompts.jsonl" --out_dir "artifacts"
-
-python dump_attn.py --model_id "/path/to/your/gptq_model" --run_tag "gptq4"   --prompts_jsonl "artifacts/selected_prompts.jsonl" --out_dir "artifacts"
-
-python dump_attn.py --model_id "/path/to/your/awq_model" --run_tag "awq4"   --prompts_jsonl "artifacts/selected_prompts.jsonl" --out_dir "artifacts"
-
-# 5) Parse IFEval results (your JSON files) and compute average 4-score metric
-python parse_ifeval.py   --results_json "/mnt/data/results_2025-10-09T13-58-12.528717.json"   --out_csv "artifacts/ifeval_scores.csv"
-
-# (Repeat step 5 for your GPTQ/AWQ results json files and put them in the same CSV or separate CSVs)
-
-# 6) Compute instruction sensitivity metrics + correlations
-python compute_metrics.py   --attn_glob "artifacts/attn_*.npz"   --ifeval_csv "artifacts/ifeval_scores_all_models.csv"   --out_dir "artifacts"
-
-# 7) Visualize
-python viz.py --attn_glob "artifacts/attn_*.npz" --out_dir "artifacts"
+# Submit to cluster
+qsub run_compensation_experiment.sh
 ```
 
----
+**Option 2: Using config file (recommended)**
+```bash
+# Create custom config
+cp config.template.sh my_experiment.config.sh
+vim my_experiment.config.sh
 
-## Files
+# Run with config
+source my_experiment.config.sh
+qsub run_compensation_experiment.sh
+```
 
-- `config.yaml` – model IDs/paths, token rules, prompt filters.
-- `select_prompts.py` – choose instruction-constrained prompts from IFEval samples.
-- `dump_attn.py` – run model with `output_attentions=True`, extract per-head attentions on *instruction tokens*, save to `npz`.
-- `parse_ifeval.py` – read `results_*.json` (lm-eval-harness) and compute the 4-metric average.
-- `compute_metrics.py` – compute **A_head**, **ΔA**, **ISI**, aggregate; correlate with IFEval drops.
-- `viz.py` – heatmaps & summary plots.
+## 📂 File Structure
 
----
+```
+ifattn/
+├── run_compensation_experiment.sh    # Main experiment pipeline
+├── config.template.sh                # Configuration template
+├── select_samples_for_compensation.py
+├── dump_attn.py
+├── identify_critical_heads.py
+├── eval_ifeval_with_compensation.py
+├── analyze_compensation_results.py
+└── artifacts/
+    └── {experiment_name}/
+        ├── selected_prompts.jsonl
+        ├── attn_fp16.npz
+        ├── attn_{quant_method}.npz
+        ├── critical_heads_{quant_method}.json
+        ├── compensation_alpha*.jsonl
+        ├── summary.csv
+        └── detailed_analysis.csv
+```
 
-## Notes
+## 🔧 Pipeline Stages
 
-- For robust token-to-char mapping, we rely on *fast tokenizers* (`return_offsets_mapping=True`).
-- If your GPTQ/AWQ integration replaces attention modules, `output_attentions=True` may still work; if not, see the hooks fallback in `dump_attn.py` (register_forward_hook).
-- Keywords in `config.yaml` define instruction segments; adjust to your IFEval subset.
-- ISI definition (default):
-  - Per-head attention to instruction tokens: average over selected tokens and over prompt positions.
-  - ΔA per head: `A_fp16 - A_quant` (positive means quantization reduced instruction focus).
-  - ISI: mean of positive ΔA across heads (normalized by number of heads).
+### Stage 1: Sample Selection
+Selects test cases based on strategy:
+- `failure_only`: FP16✓ but Quant✗ (recommended)
+- `both_wrong`: Both models fail
+- `all`: All samples
 
-Good luck – this pipeline is modular so you can swap models/benchmarks as needed.
+**Output:** `selected_prompts.jsonl`
+
+### Stage 2: Attention Extraction
+Extracts attention weights on instruction tokens for both FP16 and quantized models.
+
+**Output:** `attn_fp16.npz`, `attn_{quant_method}.npz`
+
+### Stage 3: Critical Head Identification
+Computes degradation Δ = A_fp16 - A_quant for each attention head.
+Identifies top-K heads with highest degradation.
+
+**Output:** `critical_heads_{quant_method}.json`
+
+### Stage 4: Compensation Testing
+Tests multiple compensation strengths (alpha values):
+- α=0.0: Baseline (no compensation)
+- α=5.0: Moderate compensation
+- α=10.0: Strong compensation
+- α=20.0: Aggressive compensation
+
+**Formula:** A'[head] = A[head] + α × (A_fp16[head] - A_quant[head])
+
+**Output:** `compensation_alpha{X}.jsonl` for each alpha
+
+### Stage 5: Result Analysis
+Compares outputs across alpha values:
+- Summary statistics (pass rates, improvements)
+- Language error detection
+- Quality collapse detection (token repetition, degeneration)
+
+**Output:** `summary.csv`, `detailed_analysis.csv`
+
+## 📊 Configuration Variables
+
+### Required Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `FP16_MODEL` | Full-precision model | `"Qwen/Qwen2.5-7B-Instruct"` |
+| `QUANT_MODEL` | Quantized model path | `"/path/to/gptq_4bit"` |
+| `QUANT_METHOD` | Quantization tag | `"gptq4"`, `"awq4"` |
+| `FP16_SAMPLES` | FP16 IFEval results | `"fp16_samples.jsonl"` |
+| `QUANT_SAMPLES` | Quant IFEval results | `"quant_samples.jsonl"` |
+
+### Optional Parameters
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SAMPLE_STRATEGY` | `"failure_only"` | Sample selection strategy |
+| `MAX_SAMPLES` | `5` | Number of samples to test |
+| `TOP_K_HEADS` | `10` | Number of heads to compensate |
+| `ALPHA_VALUES` | `"0.0 5.0 10.0 20.0"` | Compensation strengths |
+| `MAX_GEN_TOKENS` | `1280` | Max generation length |
+
+## 🧪 Example Experiments
+
+### Experiment 1: GPTQ 4-bit
+```bash
+export QUANT_MODEL="/path/to/gptq_4bit"
+export QUANT_METHOD="gptq4"
+export ALPHA_VALUES="0.0 5.0 10.0 20.0"
+```
+
+### Experiment 2: AWQ 4-bit
+```bash
+export QUANT_MODEL="/path/to/awq_4bit"
+export QUANT_METHOD="awq4"
+export ALPHA_VALUES="0.0 5.0 10.0 20.0"
+```
+
+### Experiment 3: Large-scale test
+```bash
+export MAX_SAMPLES=24  # All failure cases
+export ALPHA_VALUES="0.0 2.5 5.0 7.5 10.0 15.0 20.0"
+export MAX_GEN_TOKENS=2048
+```
+
+## 📈 Understanding Results
+
+### Summary Table (summary.csv)
+
+| Column | Meaning |
+|--------|---------|
+| `alpha` | Compensation strength |
+| `avg_pass_rate` | Average IFEval pass rate |
+| `samples_improved` | Number of samples that improved vs baseline |
+| `language_errors` | Number of language confusion cases |
+| `quality_issues` | Number of degenerate outputs |
+
+### Key Findings Indicators
+
+- 🎯 **Language Fix**: Repairs language confusion (e.g., German→English)
+- ⚠️ **Quality Collapse**: Over-compensation causes degeneration
+- ✅ **Improved**: Higher pass rate than baseline
+- ❌ **Degraded**: Lower pass rate than baseline
+
+## 🔬 Research Use
+
+### For Paper Submissions
+
+1. **Run full-scale experiments**:
+   - Test all failure cases (`MAX_SAMPLES=24+`)
+   - Test multiple quantization methods (GPTQ, AWQ)
+   - Test multiple models (Qwen, Llama, Mistral)
+
+2. **Generate figures**:
+   - Heatmaps: `attn_fp16.npz` vs `attn_quant.npz`
+   - Line plots: Pass rate vs alpha
+   - Bar charts: Per-category improvements
+
+3. **Report metrics**:
+   - Optimal alpha value
+   - Improvement rate
+   - Failure mode analysis
+
+### Citation
+
+```bibtex
+@inproceedings{yourname2025attention,
+  title={Attention Compensation for Repairing Instruction-Following in Quantized LLMs},
+  author={Your Name},
+  booktitle={Proceedings of ACL},
+  year={2025}
+}
+```
+
+## 🐛 Troubleshooting
+
+### Issue: "No samples selected"
+**Solution:** Check that FP16 and quant samples have overlapping keys and different pass/fail statuses.
+
+### Issue: "Attention is None"
+**Solution:** Ensure model uses eager attention mode (not Flash Attention). See `dump_attn.py` for fixes.
+
+### Issue: "Out of memory"
+**Solution:** Reduce `MAX_SAMPLES` or `MAX_GEN_TOKENS`, or use a GPU with more VRAM.
+
+### Issue: "All alpha values give same output"
+**Solution:** Increase alpha values (try 10.0, 20.0, 50.0) or check if compensation hooks are registered correctly.
+
+## 📧 Contact
+
+For questions or issues, please open a GitHub issue or contact [your email].
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
