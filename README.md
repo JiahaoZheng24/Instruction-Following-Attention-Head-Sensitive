@@ -28,32 +28,82 @@ This repository contains code to test whether **attention compensation** can rep
 
 ### Running Experiments
 
-**Option 1: Direct execution**
+**Option 1: Automated pipeline (recommended)**
 ```bash
-# Edit configuration in the script
+# 1. Edit configuration section at top of script
 vim run_compensation_experiment.sh
 
-# Submit to cluster
+# 2. Submit to cluster
 qsub run_compensation_experiment.sh
+
+# 3. Check results
+cat artifacts/your_experiment_name/summary.csv
 ```
 
-**Option 2: Using config file (recommended)**
-```bash
-# Create custom config
-cp config.template.sh my_experiment.config.sh
-vim my_experiment.config.sh
+**Option 2: Manual step-by-step execution**
 
-# Run with config
-source my_experiment.config.sh
-qsub run_compensation_experiment.sh
+Useful for debugging or running specific stages:
+
+```bash
+# Setup environment
+conda activate attention
+export BASE_DIR="/users/jzheng7/ifattn"
+export OUTPUT_DIR="$BASE_DIR/artifacts/my_test"
+mkdir -p "$OUTPUT_DIR"
+
+# Step 1: Select samples
+python select_samples_for_compensation.py \
+  --fp16_samples /path/to/fp16_samples.jsonl \
+  --quant_samples /path/to/quant_samples.jsonl \
+  --strategy failure_only \
+  --max_samples 5 \
+  --output $OUTPUT_DIR/selected_prompts.jsonl
+
+# Step 2: Extract FP16 attention
+python dump_attn.py \
+  --model_id "Qwen/Qwen2.5-7B-Instruct" \
+  --run_tag "fp16" \
+  --prompts_jsonl $OUTPUT_DIR/selected_prompts.jsonl \
+  --out_dir $OUTPUT_DIR
+
+# Step 3: Extract quantized attention
+python dump_attn.py \
+  --model_id "/path/to/quantized_model" \
+  --run_tag "gptq4" \
+  --prompts_jsonl $OUTPUT_DIR/selected_prompts.jsonl \
+  --out_dir $OUTPUT_DIR
+
+# Step 4: Identify critical heads
+python identify_critical_heads.py \
+  --fp16_attn $OUTPUT_DIR/attn_fp16.npz \
+  --quant_attn $OUTPUT_DIR/attn_gptq4.npz \
+  --top_k 10 \
+  --out_dir $OUTPUT_DIR
+
+# Step 5: Run compensation (repeat for each alpha)
+python eval_ifeval_with_compensation.py \
+  --model_path "/path/to/quantized_model" \
+  --ifeval_data $OUTPUT_DIR/selected_prompts.jsonl \
+  --attn_fp16 $OUTPUT_DIR/attn_fp16.npz \
+  --attn_quant $OUTPUT_DIR/attn_gptq4.npz \
+  --top_heads $OUTPUT_DIR/critical_heads_gptq4.json \
+  --alpha_list 0.0 \
+  --max_samples 5 \
+  --max_new_tokens 1280 \
+  --output $OUTPUT_DIR/compensation_alpha0.0.jsonl
+
+# Step 6: Analyze results
+python analyze_compensation_results.py \
+  --results $OUTPUT_DIR/compensation_alpha*.jsonl \
+  --output $OUTPUT_DIR/summary.csv \
+  --detailed_output $OUTPUT_DIR/detailed_analysis.csv
 ```
 
 ## 📂 File Structure
 
 ```
 ifattn/
-├── run_compensation_experiment.sh    # Main experiment pipeline
-├── config.template.sh                # Configuration template
+├── run_compensation_experiment.sh    # Main pipeline (edit CONFIGURATION section)
 ├── select_samples_for_compensation.py
 ├── dump_attn.py
 ├── identify_critical_heads.py
@@ -134,25 +184,47 @@ Compares outputs across alpha values:
 
 ## 🧪 Example Experiments
 
+### Quick Configuration Reference
+
+Edit the `CONFIGURATION` section in `run_compensation_experiment.sh`:
+
 ### Experiment 1: GPTQ 4-bit
 ```bash
-export QUANT_MODEL="/path/to/gptq_4bit"
-export QUANT_METHOD="gptq4"
-export ALPHA_VALUES="0.0 5.0 10.0 20.0"
+EXPERIMENT_NAME="gptq4_compensation"
+QUANT_MODEL="/path/to/gptq_4bit"
+QUANT_METHOD="gptq4"
+ALPHA_VALUES="0.0 5.0 10.0 20.0"
+MAX_SAMPLES=5
 ```
 
 ### Experiment 2: AWQ 4-bit
 ```bash
-export QUANT_MODEL="/path/to/awq_4bit"
-export QUANT_METHOD="awq4"
-export ALPHA_VALUES="0.0 5.0 10.0 20.0"
+EXPERIMENT_NAME="awq4_compensation"
+QUANT_MODEL="/path/to/awq_4bit"
+QUANT_METHOD="awq4"
+ALPHA_VALUES="0.0 5.0 10.0 20.0"
+MAX_SAMPLES=5
 ```
 
 ### Experiment 3: Large-scale test
 ```bash
-export MAX_SAMPLES=24  # All failure cases
-export ALPHA_VALUES="0.0 2.5 5.0 7.5 10.0 15.0 20.0"
-export MAX_GEN_TOKENS=2048
+EXPERIMENT_NAME="gptq4_fullscale"
+QUANT_MODEL="/path/to/gptq_4bit"
+QUANT_METHOD="gptq4"
+MAX_SAMPLES=24  # All failure cases
+ALPHA_VALUES="0.0 2.5 5.0 7.5 10.0 15.0 20.0"
+MAX_GEN_TOKENS=2048
+```
+
+### Experiment 4: Test different models
+```bash
+# Llama
+FP16_MODEL="meta-llama/Llama-3.1-8B-Instruct"
+QUANT_MODEL="/path/to/llama_gptq4"
+
+# Mistral
+FP16_MODEL="mistralai/Mistral-7B-Instruct-v0.2"
+QUANT_MODEL="/path/to/mistral_gptq4"
 ```
 
 ## 📈 Understanding Results
@@ -217,6 +289,49 @@ export MAX_GEN_TOKENS=2048
 
 ### Issue: "All alpha values give same output"
 **Solution:** Increase alpha values (try 10.0, 20.0, 50.0) or check if compensation hooks are registered correctly.
+
+### Issue: "Script takes too long"
+**Solution:** Run stages manually (Option 2) and use previously computed attention files to skip extraction steps.
+
+## 💡 Tips for Manual Execution
+
+When running steps manually (Option 2), you can:
+
+1. **Reuse attention files across experiments**
+   ```bash
+   # Extract attention once
+   python dump_attn.py --model_id "..." --run_tag "fp16" ...
+   
+   # Use same attention for multiple alpha tests
+   python eval_ifeval_with_compensation.py --alpha_list 10.0 ...
+   python eval_ifeval_with_compensation.py --alpha_list 15.0 ...
+   ```
+
+2. **Test single alpha value quickly**
+   ```bash
+   # Skip analysis, just test one alpha
+   python eval_ifeval_with_compensation.py \
+     --alpha_list 10.0 \
+     --max_samples 3 \
+     ...
+   ```
+
+3. **Debug attention extraction**
+   ```bash
+   # Test on 1 sample first
+   python dump_attn.py \
+     --prompts_jsonl <(head -1 selected_prompts.jsonl) \
+     ...
+   ```
+
+4. **Parallel alpha testing**
+   ```bash
+   # Run different alphas in parallel on different GPUs
+   CUDA_VISIBLE_DEVICES=0 python eval_ifeval_with_compensation.py --alpha_list 5.0 &
+   CUDA_VISIBLE_DEVICES=1 python eval_ifeval_with_compensation.py --alpha_list 10.0 &
+   CUDA_VISIBLE_DEVICES=2 python eval_ifeval_with_compensation.py --alpha_list 20.0 &
+   wait
+   ```
 
 ## 📧 Contact
 
