@@ -209,7 +209,7 @@ def save_selected_prompts(selected, output_path):
                 'key': item['doc_id'],
                 'prompt': prompt,
                 'instruction_id_list': doc.get('instruction_id_list', []),
-                'kwargs': doc.get('kwargs', []),
+                'kwargs': doc.get('kwargs', {}),
             }
 
             f.write(json.dumps(output, ensure_ascii=False) + '\n')

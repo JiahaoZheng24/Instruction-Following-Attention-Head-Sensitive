@@ -4,7 +4,7 @@
 #$ -pe smp 4
 #$ -q gpu
 #$ -l gpu_card=1
-#$ -N ATTN_COMPENSATION
+#$ -N ATTN_COMPENSATION_4bit
 
 set -e
 
@@ -40,17 +40,18 @@ CONDA_ENV="attention"
 # Models
 FP16_MODEL="Qwen/Qwen2.5-7B-Instruct"
 QUANT_MODEL="/store01/yshi4/Quant_Lib/quantized_models_gptq/quantized_Qwen_Qwen2.5-7B-Instruct_4bit"
-QUANT_METHOD="gptq4"  # Used for tagging outputs (gptq4, awq4, etc.)
+QUANT_METHOD="gptq4"  # Used for tagging outputs (gptq awq4, etc.)
 
 # IFEval benchmark data
 FP16_SAMPLES="/users/jzheng7/result/ifeval/qwen/Qwen__Qwen2.5-7B-Instruct/samples_ifeval_2025-10-09T13-58-12.528717.jsonl"
 QUANT_SAMPLES="/users/jzheng7/result/ifeval/qwen/__store01__yshi4__Quant_Lib__quantized_models_gptq__quantized_Qwen_Qwen2.5-7B-Instruct_4bit/samples_ifeval_2025-10-14T16-06-35.354326.jsonl"
+#QUANT_SAMPLES="/users/jzheng7/result/ifeval/qwen/__store01__yshi4__Quant_Lib__quantized_models_gptq__quantized_Qwen_Qwen2.5-7B-Instruct_2bit/samples_ifeval_2025-10-22T15-55-18.912810.jsonl"
 
 # Experiment parameters
-SAMPLE_STRATEGY="failure_only"  # Options: failure_only, both_wrong, all
-MAX_SAMPLES=5                    # Number of samples to test
-TOP_K_HEADS=10                   # Number of critical heads to compensate
-ALPHA_VALUES="0.0 5.0 10.0 20.0" # Compensation strengths to test
+SAMPLE_STRATEGY="failure_only"  # Options: failure_only, mixed, both_correct
+MAX_SAMPLES=10                    # Number of samples to test
+TOP_K_HEADS=15                   # Number of critical heads to compensate
+ALPHA_VALUES="0.0 5.0 10.0" # Compensation strengths to test
 MAX_GEN_TOKENS=1280              # Maximum generation length
 
 ################################################################################
@@ -128,7 +129,7 @@ echo "[5/6] Running compensation experiments..."
 echo "  Alpha values: $ALPHA_VALUES"
 
 for ALPHA in $ALPHA_VALUES; do
-  OUTPUT_FILE="$OUTPUT_DIR/compensation_alpha${ALPHA}.jsonl"
+  OUTPUT_FILE="$OUTPUT_DIR/compensation_alpha${ALPHA}.json"
 
   if [[ -f "$OUTPUT_FILE" ]]; then
     echo "  ✓ Alpha=$ALPHA already completed, skipping"
@@ -156,7 +157,7 @@ echo "[6/6] Analyzing compensation results..."
 # Build list of result files
 RESULT_FILES=""
 for ALPHA in $ALPHA_VALUES; do
-  RESULT_FILES="$RESULT_FILES $OUTPUT_DIR/compensation_alpha${ALPHA}.jsonl"
+  RESULT_FILES="$RESULT_FILES $OUTPUT_DIR/compensation_alpha${ALPHA}.json"
 done
 
 python "$BASE_DIR/analyze_compensation_results.py" \
@@ -178,6 +179,6 @@ echo "Key output files:"
 echo "  - summary.csv              : High-level statistics"
 echo "  - detailed_analysis.csv    : Per-sample comparison"
 echo "  - critical_heads_*.json    : Top-K degraded heads"
-echo "  - compensation_alpha*.jsonl: Raw outputs for each alpha"
+echo "  - compensation_alpha*.json: Raw outputs for each alpha"
 echo ""
 date

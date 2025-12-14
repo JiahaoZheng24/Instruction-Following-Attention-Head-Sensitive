@@ -220,18 +220,38 @@ def main():
         if (idx + 1) % 5 == 0 or idx == 0:
             log(f"  [{idx + 1}/{len(prompts)}] Processing...")
 
-        # Extract text
-        text = ex.get("prompt") or ex.get("text")
-        if not text:
+        # Extract text (user prompt)
+        user_text = ex.get("prompt") or ex.get("text")
+        if not user_text:
             continue
 
-        spans = find_spans(text, regex_list)
-        idxs = char_to_token_idxs(text, tokenizer, spans)
+        # IMPORTANT: keep tokenization consistent with eval (chat template)
+        messages = [
+            {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
+            {"role": "user", "content": user_text},
+        ]
+        formatted_prompt = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+
+        # Find instruction spans in *user_text*, then map to char positions in formatted_prompt
+        spans_rel = find_spans(user_text, regex_list)
+        start_char = formatted_prompt.find(user_text)
+        if start_char == -1:
+            # Fallback: operate on formatted prompt directly (less precise)
+            spans = find_spans(formatted_prompt, regex_list)
+        else:
+            spans = [(s + start_char, e + start_char) for (s, e) in spans_rel]
+
+        idxs = char_to_token_idxs(formatted_prompt, tokenizer, spans)
+
 
         # 添加debug输出
-        print(f"\n  Prompt length: {len(text)} chars")
-        print(f"  Found {len(spans)} instruction spans: {spans[:3]}...")  # 只显示前3个
-        print(f"  Instruction token indices: {idxs[:10]}...")  # 只显示前10个
+        # 添加debug输出
+        print(f"  Found {len(spans)} instruction spans (in formatted prompt): {spans[:3]}...")
+        print(f"  Instruction token indices (first 10): {idxs[:10]}...")
         print(f"  Total instruction tokens: {len(idxs)}")
 
         # 如果没有找到instruction tokens，警告

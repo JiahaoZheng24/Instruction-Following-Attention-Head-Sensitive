@@ -201,6 +201,7 @@ def main():
     # Identify top-K heads
     print(f"\n4. Identifying top-{args.top_k} critical heads (method={args.method})...")
     top_k_heads = identify_top_k_heads(delta, k=args.top_k, method=args.method)
+    critical_set = {(l, h) for (l, h, _) in top_k_heads}
 
     print(f"\n   Top-{args.top_k} critical heads:")
     print("   " + "-" * 60)
@@ -275,7 +276,7 @@ def main():
                 'quant_attn': quant_mean[layer, head],
                 'degradation': delta[layer, head],
                 'abs_degradation': abs(delta[layer, head]),
-                'is_critical': (layer, head, delta[layer, head]) in top_k_heads
+                'is_critical': (layer, head) in critical_set
             })
 
     per_head_df = pd.DataFrame(per_head_data)
