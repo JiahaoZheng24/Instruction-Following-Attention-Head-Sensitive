@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-Extract attention weights focusing on instruction tokens
-Robust version with extensive error handling and debugging
+dump_attn.py - Extract attention weights for instruction tokens
+
+FIXED VERSION - Resolves UnboundLocalError with 'text' variable
 """
+
 import argparse
 import os
 import json
@@ -11,19 +13,15 @@ import sys
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
-try:
-    from auto_gptq import AutoGPTQForCausalLM
-except ImportError:
-    AutoGPTQForCausalLM = None
 
 
 def log(msg):
-    """Print with flush for real-time logging in qsub"""
+    """Simple logging with flush"""
     print(msg, flush=True)
 
 
 def find_spans(text, pats):
-    """Find character spans matching regex patterns"""
+    """Find and merge overlapping spans matching patterns"""
     spans = []
     for pat in pats:
         for m in re.finditer(pat, text, flags=re.IGNORECASE | re.DOTALL):
@@ -55,51 +53,35 @@ def char_to_token_idxs(text, tokenizer, spans):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract attention on instruction tokens")
-    parser.add_argument("--model_id", required=True, help="HuggingFace model ID or path")
-    parser.add_argument("--run_tag", required=True, help="Tag for this run (e.g., fp16, gptq3)")
-    parser.add_argument("--prompts_jsonl", required=True, help="Path to prompts JSONL file")
-    parser.add_argument("--out_dir", required=True, help="Output directory")
-    parser.add_argument("--max_length", type=int, default=4096, help="Max sequence length")
-    # 新增：可选的 tokenizer_id，默认用 model_id
-    parser.add_argument(
-        "--tokenizer_id",
-        default=None,
-        help="Optional separate tokenizer id/path (default: use model_id)",
-    )
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model_id", required=True)
+    ap.add_argument("--run_tag", required=True)
+    ap.add_argument("--prompts_jsonl", required=True)
+    ap.add_argument("--out_dir", required=True)
+    ap.add_argument("--max_length", type=int, default=4096)
+    args = ap.parse_args()
+
+    # Instruction patterns
+    regex_list = [
+        r"two words", r"start with", r"json", r"format", r"only output.*",
+        r"no explanation", r"do not explain", r"output only",
+        r"title", r"bullet point", r"all lowercase", r"markdown",
+        r"three sections", r"highlight", r"exactly \d+ bullet",
+        r"use exactly \d+ words", r"all capital", r"comma",
+        r"postscript", r"first word", r"end your response with",
+        r"wrap.*in json", r"include keywords", r"letter frequency",
+        r"repeat the prompt", r"in your entire response"
+    ]
 
     log("=" * 70)
     log(f"ATTENTION EXTRACTION: {args.run_tag}")
     log("=" * 70)
-
-    # Instruction regex patterns
-    regex_list = [
-        # 原有的patterns
-        r"two words", r"start with", r"json", r"format",
-        r"only output.*", r"no explanation", r"do not explain", r"output only",
-
-        # 新增patterns - 匹配更多instruction类型
-        r"title", r"wrapped in", r"double angular brackets",
-        r"repeat", r"word for word",
-        r"bullet point", r"numbered list",
-        r"all lowercase", r"all capital",
-        r"less than \d+ words", r"at least \d+ words",
-        r"postscript", r"P\.S\.",
-        r"first word", r"end with",
-        r"placeholder", r"\[.*?\]",
-    ]
     log(f"Instruction patterns: {len(regex_list)} patterns")
 
-    # Step 1: Load tokenizer
-    tok_id = args.tokenizer_id or args.model_id
-    log(f"\n[1/5] Loading tokenizer from: {tok_id}")
+    # Load tokenizer
+    log(f"\n[1/5] Loading tokenizer from: {args.model_id}")
     try:
-        tokenizer = AutoTokenizer.from_pretrained(
-            tok_id,
-            use_fast=True,
-            trust_remote_code=True,
-        )
+        tokenizer = AutoTokenizer.from_pretrained(args.model_id, use_fast=True)
         tokenizer.padding_side = "left"
         tokenizer.truncation_side = "left"
         log("✓ Tokenizer loaded successfully")
@@ -107,96 +89,53 @@ def main():
         log(f"✗ FAILED to load tokenizer: {e}")
         sys.exit(1)
 
-    # Step 2: Disable Flash Attention
+    # Disable Flash Attention
     log("\n[2/5] Disabling Flash Attention backends...")
     try:
         torch.backends.cuda.enable_flash_sdp(False)
         torch.backends.cuda.enable_mem_efficient_sdp(False)
         torch.backends.cuda.enable_math_sdp(True)
         log("✓ Flash/SDPA disabled, using math backend")
-    except Exception as e:
-        log(f"⚠ Warning: Could not disable Flash/SDPA: {e}")
+    except Exception:
+        log("⚠️  Could not configure attention backends")
 
-    # Step 3: Load model with extensive error handling
+    # Load model
     log(f"\n[3/5] Loading model: {args.model_id}")
     log("This may take several minutes...")
 
+    if torch.cuda.is_available():
+        log(f"✓ CUDA available: {torch.cuda.get_device_name(0)}")
+    else:
+        log("⚠️  CUDA not available, using CPU")
+
     try:
-        # Check CUDA availability
-        if not torch.cuda.is_available():
-            log("⚠ WARNING: CUDA not available, using CPU (will be slow)")
-            device_map = "cpu"
-        else:
-            log(f"✓ CUDA available: {torch.cuda.get_device_name(0)}")
-            device_map = "auto"
-
-        # Decide whether this is a GPTQ quantized model or a normal HF model
-        quant_config_path = os.path.join(args.model_id, "quantize_config.json")
-        is_gptq = os.path.exists(quant_config_path)
-
-        if is_gptq:
-            log(f"   Detected GPTQ checkpoint (found {quant_config_path})")
-            if AutoGPTQForCausalLM is None:
-                raise RuntimeError(
-                    "This looks like a GPTQ quantized model, but auto_gptq is not installed "
-                    "in this environment. Please install auto-gptq or run in the lm-eval env."
-                )
-            # 用 AutoGPTQ 正确加载 3bit 模型
-            model = AutoGPTQForCausalLM.from_quantized(
-                args.model_id,
-                device_map=device_map,
-                trust_remote_code=True,
-                use_triton=False,
-            )
-            log("✓ GPTQ model loaded via AutoGPTQForCausalLM.from_quantized(...)")
-        else:
-            # 正常 FP16 / 非量化模型走原来的 HF 路径
-            model = AutoModelForCausalLM.from_pretrained(
-                args.model_id,
-                torch_dtype=torch.float16 if device_map != "cpu" else torch.float32,
-                device_map=device_map,
-                trust_remote_code=True,
-                low_cpu_mem_usage=True,
-            )
-            log("✓ FP16 / non-GPTQ model loaded via AutoModelForCausalLM.from_pretrained(...)")
-
-        # Print model info
-        log(f"  Model type: {type(model).__name__}")
-        log(f"  Device: {next(model.parameters()).device}")
-
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model_id,
+            torch_dtype=torch.float16,
+            device_map="auto"
+        )
+        log("✓ FP16 / non-GPTQ model loaded via AutoModelForCausalLM.from_pretrained(...)")
+        log(f"  Model type: {model.__class__.__name__}")
+        log(f"  Device: {model.device}")
     except Exception as e:
         log(f"✗ FAILED to load model: {e}")
-        import traceback
-        traceback.print_exc()
         sys.exit(1)
 
-    # Step 4: Set eager attention
+    # Configure attention
     log("\n[4/5] Configuring attention mechanism...")
     try:
-        if hasattr(model, "set_attn_implementation"):
-            model.set_attn_implementation("eager")
-            log("✓ Set attention implementation to 'eager'")
-        elif hasattr(model.config, "attn_implementation"):
-            model.config.attn_implementation = "eager"
-            log("✓ Set config.attn_implementation = 'eager'")
-        else:
-            log("⚠ Could not set eager attention explicitly")
-            log("  Will try output_attentions=True and see if it works")
+        model.set_attn_implementation("eager")
+        log("✓ Set attention implementation to 'eager'")
     except Exception as e:
-        log(f"⚠ Warning setting eager attention: {e}")
+        log(f"⚠️  Could not set attention implementation: {e}")
 
     model.eval()
     log("✓ Model set to eval mode")
 
-    # Step 5: Load and process prompts
+    # Load prompts
     log(f"\n[5/5] Processing prompts from: {args.prompts_jsonl}")
-
-    if not os.path.exists(args.prompts_jsonl):
-        log(f"✗ ERROR: File not found: {args.prompts_jsonl}")
-        sys.exit(1)
-
-    if os.path.getsize(args.prompts_jsonl) == 0:
-        log(f"✗ ERROR: File is empty: {args.prompts_jsonl}")
+    if not os.path.exists(args.prompts_jsonl) or os.path.getsize(args.prompts_jsonl) == 0:
+        log(f"✗ ERROR: Prompts file missing or empty: {args.prompts_jsonl}")
         sys.exit(1)
 
     try:
@@ -223,6 +162,8 @@ def main():
         # Extract text (user prompt)
         user_text = ex.get("prompt") or ex.get("text")
         if not user_text:
+            log(f"  ⚠️  Skipping sample {idx}: no prompt text")
+            failed_count += 1
             continue
 
         # IMPORTANT: keep tokenization consistent with eval (chat template)
@@ -247,114 +188,91 @@ def main():
 
         idxs = char_to_token_idxs(formatted_prompt, tokenizer, spans)
 
+        # Debug output
+        if (idx + 1) % 5 == 0 or idx == 0:
+            print(f"  Found {len(spans)} instruction spans in formatted prompt")
+            print(f"  Instruction token indices: {len(idxs)} tokens")
 
-        # 添加debug输出
-        # 添加debug输出
-        print(f"  Found {len(spans)} instruction spans (in formatted prompt): {spans[:3]}...")
-        print(f"  Instruction token indices (first 10): {idxs[:10]}...")
-        print(f"  Total instruction tokens: {len(idxs)}")
-
-        # 如果没有找到instruction tokens，警告
+        # Warning if no instruction tokens found
         if len(idxs) == 0:
-            print(f"  ⚠️  WARNING: No instruction tokens found!")
-            print(f"  Prompt preview: {text[:200]}...")
+            print(f"  ⚠️  WARNING: No instruction tokens found for sample {idx}!")
+            print(f"  User text preview: {user_text[:200]}...")
+            # Continue anyway - will compute zero attention
 
-        # Truncate very long texts
-        if len(text) > 10000:
-            log(f"  [WARNING] Prompt {idx} is very long ({len(text)} chars), truncating")
-            text = text[:10000]
-
+        # Tokenize formatted prompt
         try:
-            # Find instruction spans
-            spans = find_spans(text, regex_list)
-            idxs = char_to_token_idxs(text, tokenizer, spans)
-
-            # Tokenize
             toks = tokenizer(
-                text,
+                formatted_prompt,
                 return_tensors="pt",
                 truncation=True,
-                max_length=args.max_length,
+                max_length=args.max_length
             )
             input_ids = toks["input_ids"].to(model.device)
             attn_mask = toks["attention_mask"].to(model.device)
+        except Exception as e:
+            log(f"  ✗ Tokenization failed for sample {idx}: {e}")
+            failed_count += 1
+            continue
 
-            # Run model with attention extraction
+        # Run model with attention extraction
+        try:
             with torch.no_grad():
-                outputs = model(
-                    input_ids=input_ids,
-                    attention_mask=attn_mask,
-                    output_attentions=True,
+                out = model(input_ids=input_ids, attention_mask=attn_mask, output_attentions=True)
+
+            attentions = out.attentions
+            if attentions is None:
+                raise RuntimeError(
+                    "Got attentions=None. Your backend is still not in 'eager' mode.\n"
+                    "Fixes to try:\n"
+                    "  1) Ensure transformers>=4.41, and call model.set_attn_implementation('eager').\n"
+                    "  2) Disable Flash/SDPA kernels via torch.backends.cuda.enable_flash_sdp(False), etc.\n"
+                    "  3) If using quantized backends that swallow attentions, switch to a HF model that supports attentions.\n"
                 )
 
-            # Check if attentions were returned
-            if outputs.attentions is None:
-                log(f"  [ERROR] Prompt {idx}: attentions is None!")
-                log(f"  This means eager attention is not working properly")
-                log(f"  Skipping this prompt...")
-                failed_count += 1
-                continue
-
-            # Extract attention weights
+            # Extract per-head attention to instruction tokens
             mats = []
-            for A in outputs.attentions:  # [batch, heads, tgt, src]
+            for A in attentions:  # [bs, heads, tgt, src]
                 H = A[0]  # [heads, tgt, src]
                 if len(idxs) == 0:
+                    # No instruction tokens - use zero attention
                     v = torch.zeros(H.size(0), dtype=torch.float16, device=H.device)
                 else:
+                    # Average attention to instruction tokens across positions
                     v = H[..., idxs].mean(dim=(1, 2))
                 mats.append(v.detach().float().cpu().numpy())
 
             LH = np.stack(mats, axis=0)  # [L, H]
             attn_per_prompt.append(LH)
 
-            # Clear cache periodically
-            if (idx + 1) % 10 == 0:
-                torch.cuda.empty_cache()
-
         except Exception as e:
-            log(f"  [ERROR] Failed to process prompt {idx}: {str(e)[:100]}")
+            log(f"  ✗ Model forward failed for sample {idx}: {e}")
             failed_count += 1
             continue
 
-    log(f"\n✓ Successfully processed {len(attn_per_prompt)}/{len(prompts)} prompts")
-    if failed_count > 0:
-        log(f"⚠ Failed to process {failed_count} prompts")
-
+    # Check results
     if len(attn_per_prompt) == 0:
-        log("✗ ERROR: No prompts were successfully processed")
-        log("Check the error messages above for details")
+        log("\n✗ ERROR: No valid prompts produced attention matrices")
+        log("Check regex/dataset or model configuration")
         sys.exit(1)
 
+    if failed_count > 0:
+        log(f"\n⚠️  {failed_count}/{len(prompts)} prompts failed")
+
     # Save results
-    log("\nSaving results...")
     arr = np.stack(attn_per_prompt, axis=0)  # [P, L, H]
     mean_over_prompts = arr.mean(axis=0)  # [L, H]
 
     os.makedirs(args.out_dir, exist_ok=True)
-    output_path = os.path.join(args.out_dir, f"attn_{args.run_tag}.npz")
+    outp = os.path.join(args.out_dir, f"attn_{args.run_tag}.npz")
+    meta = {"model_id": args.model_id, "run_tag": args.run_tag}
 
-    meta = {
-        "model_id": args.model_id,
-        "run_tag": args.run_tag,
-        "num_prompts": len(attn_per_prompt),
-        "num_failed": failed_count,
-    }
+    np.savez(outp, mean_layer_head=mean_over_prompts, per_prompt=arr, meta=json.dumps(meta))
 
-    np.savez(
-        output_path,
-        mean_layer_head=mean_over_prompts,
-        per_prompt=arr,
-        meta=json.dumps(meta),
-    )
-
-    log(f"✓ Saved to: {output_path}")
+    log(f"\n✓ Saved: {outp}")
     log(f"  Shape: {mean_over_prompts.shape}")
-    log(f"  Mean attention: {mean_over_prompts.mean():.6f}")
-    log(f"  Std attention: {mean_over_prompts.std():.6f}")
-
+    log(f"  Processed: {len(attn_per_prompt)}/{len(prompts)} samples")
     log("\n" + "=" * 70)
-    log("✅ ATTENTION EXTRACTION COMPLETE")
+    log("✅ EXTRACTION COMPLETE")
     log("=" * 70)
 
 
