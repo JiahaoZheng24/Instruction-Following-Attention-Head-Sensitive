@@ -1,0 +1,197 @@
+\documentclass[11pt]{article}
+
+% Change "review" to "final" to generate the final (sometimes called camera-ready) version.
+% Change to "preprint" to generate a non-anonymous version with page numbers.
+\usepackage[review]{acl}
+
+% Standard package includes
+\usepackage{times}
+\usepackage{latexsym}
+
+% For proper rendering and hyphenation of words containing Latin characters (including in bib files)
+\usepackage[T1]{fontenc}
+% For Vietnamese characters
+% \usepackage[T5]{fontenc}
+% See https://www.latex-project.org/help/documentation/encguide.pdf for other character sets
+
+% This assumes your files are encoded as UTF8
+\usepackage[utf8]{inputenc}
+
+% This is not strictly necessary, and may be commented out,
+% but it will improve the layout of the manuscript,
+% and will typically save some space.
+\usepackage{microtype}
+
+% This is also not strictly necessary, and may be commented out.
+% However, it will improve the aesthetics of text in
+% the typewriter font.
+\usepackage{inconsolata}
+
+%Including images in your LaTeX document requires adding
+%additional package(s)
+\usepackage{graphicx}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}       % For professional tables
+\usepackage{xcolor}         % For colored text
+\usepackage{pifont}         % For checkmark/cross symbols
+\usepackage{array}          % For advanced table formatting
+\usepackage{subcaption}
+\usepackage{dblfloatfix}
+\usepackage{placeins}
+\usepackage{tabularx}
+\usepackage{float}
+
+% Define colored symbols
+\newcommand{\cmark}{\textcolor{green!60!black}{\ding{51}}}  % Green checkmark
+\newcommand{\xmark}{\textcolor{red!70!black}{\ding{55}}}    % Red cross
+\newcommand{\wmark}{\textcolor{orange!80!black}{!}}         % Orange warning (optional)
+
+% If the title and author information does not fit in the area allocated, uncomment the following
+%
+%\setlength\titlebox{<dim>}
+%
+% and set <dim> to something 5cm or larger.
+
+\title{Recovering Instruction Following Loss in Quantized LLMs via Attention Head Compensation}
+
+% Author information can be set in various styles:
+% For several authors from the same institution:
+% \author{Author 1 \and ... \and Author n \\
+%         Address line \\ ... \\ Address line}
+% if the names do not fit well on one line use
+%         Author 1 \\ {\bf Author 2} \\ ... \\ {\bf Author n} \\
+% For authors from different institutions:
+% \author{Author 1 \\ Address line \\  ... \\ Address line
+%         \And  ... \And
+%         Author n \\ Address line \\ ... \\ Address line}
+% To start a separate ``row'' of authors use \AND, as in
+% \author{Author 1 \\ Address line \\  ... \\ Address line
+%         \AND
+%         Author 2 \\ Address line \\ ... \\ Address line \And
+%         Author 3 \\ Address line \\ ... \\ Address line}
+
+\author{First Author \\
+  Affiliation / Address line 1 \\
+  Affiliation / Address line 2 \\
+  Affiliation / Address line 3 \\
+  \texttt{email@domain} \\\And
+  Second Author \\
+  Affiliation / Address line 1 \\
+  Affiliation / Address line 2 \\
+  Affiliation / Address line 3 \\
+  \texttt{email@domain} \\}
+
+%\author{
+%  \textbf{First Author\textsuperscript{1}},
+%  \textbf{Second Author\textsuperscript{1,2}},
+%  \textbf{Third T. Author\textsuperscript{1}},
+%  \textbf{Fourth Author\textsuperscript{1}},
+%\\
+%  \textbf{Fifth Author\textsuperscript{1,2}},
+%  \textbf{Sixth Author\textsuperscript{1}},
+%  \textbf{Seventh Author\textsuperscript{1}},
+%  \textbf{Eighth Author \textsuperscript{1,2,3,4}},
+%\\
+%  \textbf{Ninth Author\textsuperscript{1}},
+%  \textbf{Tenth Author\textsuperscript{1}},
+%  \textbf{Eleventh E. Author\textsuperscript{1,2,3,4,5}},
+%  \textbf{Twelfth Author\textsuperscript{1}},
+%\\
+%  \textbf{Thirteenth Author\textsuperscript{3}},
+%  \textbf{Fourteenth F. Author\textsuperscript{2,4}},
+%  \textbf{Fifteenth Author\textsuperscript{1}},
+%  \textbf{Sixteenth Author\textsuperscript{1}},
+%\\
+%  \textbf{Seventeenth S. Author\textsuperscript{4,5}},
+%  \textbf{Eighteenth Author\textsuperscript{3,4}},
+%  \textbf{Nineteenth N. Author\textsuperscript{2,5}},
+%  \textbf{Twentieth Author\textsuperscript{1}}
+%\\
+%\\
+%  \textsuperscript{1}Affiliation 1,
+%  \textsuperscript{2}Affiliation 2,
+%  \textsuperscript{3}Affiliation 3,
+%  \textsuperscript{4}Affiliation 4,
+%  \textsuperscript{5}Affiliation 5
+%\\
+%  \small{
+%    \textbf{Correspondence:} \href{mailto:email@domain}{email@domain}
+%  }
+%}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+% Model quantization is essential for deploying large language models (LLMs), 
+% yet quantized models often fail at instruction-following in unpredictable ways-generating responses in wrong languages, ignoring formatting constraints, or 
+% producing degenerate outputs. We present \textbf{Deep Attention Stimulation (DAS)}, a training-free intervention that 
+% selectively compensates degraded attention most affected by quantization. Inspired by neural stimulation in cognitive neuroscience, where localized interventions target dysfunctional neural activity, we identify critical attention heads by analyzing activation differences between full-precision and quantized models on failure cases. Through qualitative analysis on 10 carefully selected 
+% samples from IFEval, we show that injecting small corrective signals 
+% (alpha-scaled activation differences) into these heads can recover 
+% instruction-following behavior: a 4-bit GPTQ Qwen2.5-7B model shifts from 
+% producing German output to correct English, and eliminates repetitive 
+% degeneration. Our pilot study suggests that quantization-induced 
+% instruction-following failures are localized to specific attention heads, 
+% opening avenues for interpretable and targeted post-quantization correction methods.
+
+Model quantization is essential for deploying large language models (LLMs). However, quantized models often exhibit unpredictable failures in instruction following, including unintended language switching, violation of formatting constraints, and degenerative generation.
+We present \textbf{Deep Attention Stimulation (DAS)}, a training-free intervention that selectively compensates attention heads most disrupted by quantization. Inspired by targeted neural stimulation in cognitive neuroscience, DAS identifies critical attention heads by analyzing activation differences between full-precision and quantized models on instruction-following failure cases. Through qualitative analysis on 10 carefully selected samples from IFEval, we show that injecting small corrective signals into these heads can recover instruction-following behavior.
+In particular, a 4-bit GPTQ Qwen2.5-7B-Instruct model recovers correct English output and avoids repetitive degeneration under moderate stimulation. Our pilot study suggests that quantization-induced instruction-following failures are localized to a small subset of attention heads rather than uniformly distributed. These findings highlight the potential of interpretable and targeted post-quantization repair mechanisms.
+\end{abstract}
+
+\input{1-intro}
+\input{2-related}
+\input{3-method}
+\input{4-experiments}
+\input{5-analysis}
+\input{6-conclusion}
+
+% Limitations section (ACL required)
+\section{Limitations}
+
+\paragraph{Evaluation Scope.}
+Our study focuses on a single instruction-tuned model (Qwen2.5-7B-Instruct) quantized
+with GPTQ-4bit, and evaluates a limited set of 10 representative failure cases
+selected for qualitative analysis.
+While this setting enables detailed mechanistic inspection, broader evaluation
+across model families, quantization methods, and the full IFEval benchmark 
+could further validate the generality of our approach.
+
+\paragraph{Manual Parameter Selection.}
+The stimulation strength $\alpha$ is selected via grid search, with
+$\alpha=5$ yielding the most consistent recovery in our experiments.
+This value may not transfer across models or quantization settings.
+Developing principled or adaptive strategies for selecting stimulation strength
+remains an open direction.
+
+\paragraph{Dependence on Full-Precision Activations.}
+Our diagnostic procedure relies on access to full-precision activations to
+identify degraded attention heads and construct corrective signals.
+In practical deployment scenarios where such access may be unavailable,
+pre-computed correction profiles or self-supervised approximations would be
+required.
+
+\paragraph{Single-Capability Focus.}
+We focus exclusively on instruction-following behavior.
+Whether similar localized interventions can recover other capabilities, such as
+reasoning, factual consistency, or safety alignment, remains unexplored.
+Extending DAS to multi-capability settings may require resolving interactions
+between attention heads supporting different behaviors.
+
+
+% Acknowledgments 
+% \section*{Acknowledgments}
+% Thanks for ...
+
+% Bibliography
+\bibliography{custom}
+
+% Appendix
+\input{appendix}
+
+\end{document}

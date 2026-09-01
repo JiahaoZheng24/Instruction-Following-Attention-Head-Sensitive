@@ -1,0 +1,21 @@
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Quantization of LLMs}
+Quantization has become a common strategy for improving the efficiency of LLMs by reducing numerical precision and thus lowering memory footprint and inference cost. In transformer-based architectures, post-training quantization (PTQ) has been widely adopted due to its training-free nature~\citep{frantar2022gptq,xiao2023smoothquant, lin2023awq, yao2022zeroquant}. In parallel, quantization-aware training (QAT) integrates quantization effects directly into the training process~\citep{dettmers2023qlora, liu2024llm}, improving task performance under low-precision constraints at additional training and memory cost.
+
+
+Recent work has extended these techniques to LLMs with billions of parameters, addressing challenges such as highly non-uniform weight distributions and activation outliers. Empirical results show that models including LLaMA, Qwen, and GPT-style architectures can often be compressed to 4-bit and in some cases even 3-bit precision while largely preserving perplexity and downstream task accuracy~\citep{dettmers2022llmint8,frantar2022gptq,lin2023awq}. Low-bit quantization can maintain strong aggregate performance across a wide range of tasks, while exhibiting heterogeneous effects across evaluation dimensions, including alignment-related metrics~\citep{jin2024comprehensive, dettmers2023spqr, kharinaev2025investigating}. Nevertheless, most existing evaluations focus on aggregate accuracy or language understanding benchmarks, leaving open questions about how low-bit quantization affects higher-level behaviors such as instruction-following and reasoning.
+
+\subsection{Evaluation on Instruction Following}
+Instruction-following has emerged as a central capability of modern large language models, particularly after instruction tuning and alignment pro~\citep{zhang2025iheval, bang2023multitask}. To evaluate this behavior, recent benchmarks move beyond traditional language modeling metrics and assess whether models can correctly interpret, follow, and adhere to explicit natural language instructions. Representative benchmarks such as IFEval~\citep{zhou2023ifeval}, AlpacaEval~\citep{li2023alpacaeval}, and AlignBench~\citep{liu2024alignbench} focus on constraint satisfaction, format compliance, and rule-following behaviors, providing a more behavior-oriented view of model performance compared to standard perplexity or accuracy-based evaluations.
+
+
+While prior work on quantization primarily evaluates model quality using aggregate metrics such as perplexity or standard language understanding benchmarks, these evaluations do not fully capture the behaviors exhibited by instruction-tuned large language models in real-world settings~\citep{jin2024comprehensive, xia-etal-2023-training}.
+\subsection{Attention Heads in Transformers}
+
+A substantial body of recent work has shown that attention heads in transformer models exhibit significant functional diversity, with different heads specializing in distinct linguistic, syntactic, or positional patterns~\citep{voita2019analyzing,clark2019does,rai2024practical}. More broadly, inspired by diagnostic practices in cognitive neuroscience-where brain neural signals (e.g., EEG) are used to identify behaviorally salient events-recent work in mechanistic interpretability has adopted functional and diagnostic perspectives to analyze internal components of neural networks \citep{kriegeskorte2008representational, nanda2023progress}. 
+
+
+
+

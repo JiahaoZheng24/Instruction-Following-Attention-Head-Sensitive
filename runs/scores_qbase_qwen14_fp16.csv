@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+qbase_qwen14_fp16,0.7763,0.8393,0.8022,0.8633,0.8203

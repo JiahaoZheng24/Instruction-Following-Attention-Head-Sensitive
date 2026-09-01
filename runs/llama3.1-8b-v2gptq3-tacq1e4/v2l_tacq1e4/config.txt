@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/llama3.1-8b-v2gptq3-tacq1e4
+heads=[]
+n=0

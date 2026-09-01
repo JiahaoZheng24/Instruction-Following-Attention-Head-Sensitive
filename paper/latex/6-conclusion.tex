@@ -1,0 +1,24 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We find that quantization induced instruction following failures are highly
+localized, arising from disruption in a small subset of attention heads.
+To address this, we introduce Deep Attention Stimulation (DAS), a training free
+intervention that restores instruction following by compensating degraded
+attention head outputs.
+DAS recovers language and formatting constraints under moderate stimulation,
+while excessive stimulation destabilizes generation.
+These results point to a new direction for targeted and interpretable
+post quantization model repair.
+
+% We introduce \emph{Diagnostic Attention Stimulation (DAS)}, a training-free
+% approach for recovering instruction-following behavior in quantized large
+% language models through targeted attention head interventions.
+% Our analysis shows that quantization induces localized, sparse disruptions in a
+% small subset of critical attention heads rather than uniform degradation.
+% By selectively compensating these disrupted heads with moderate stimulation
+% ($\alpha=5$), DAS recovers instruction-following behavior in most qualitative
+% failure cases, while stronger stimulation leads to degeneration.
+% These findings suggest that quantization-induced failures are diagnosable and
+% correctable through targeted, interpretable interventions, pointing to a new
+% direction for post-quantization model repair.

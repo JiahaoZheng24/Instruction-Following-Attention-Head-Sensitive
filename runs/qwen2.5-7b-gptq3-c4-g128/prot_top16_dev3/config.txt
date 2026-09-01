@@ -1,0 +1,6 @@
+quant_model=/store01/yshi4/jzheng7/models/qwen2.5-7b-gptq3-c4-g128
+fp_source=Qwen/Qwen2.5-7B-Instruct
+heads=[(27, 13), (27, 10), (27, 12), (27, 11), (27, 7), (27, 2), (27, 9), (27, 8), (27, 0), (26, 12), (26, 8), (27, 16), (26, 22), (27, 6), (27, 26), (27, 3)]
+n=16
+kv=True
+protected_params=20188672

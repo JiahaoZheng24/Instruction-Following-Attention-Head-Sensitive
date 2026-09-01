@@ -1,0 +1,2 @@
+tag,mmlu_acc,wikitext2_ppl
+gen_llama_fp16,0.6826,7.217

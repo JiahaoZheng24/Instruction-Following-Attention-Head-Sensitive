@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2_heads32_cs2,0.6026,0.6894,0.647,0.7278,0.6667

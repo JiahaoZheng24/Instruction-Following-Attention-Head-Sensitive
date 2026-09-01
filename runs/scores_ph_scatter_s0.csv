@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+ph_scatter_s0,0.597,0.6954,0.6322,0.7266,0.6628

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+baseline_full,0.7172,0.7938,0.7394,0.8106,0.7652

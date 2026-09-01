@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+rotfp_llama,0.7246,0.807,0.7671,0.8405,0.7848

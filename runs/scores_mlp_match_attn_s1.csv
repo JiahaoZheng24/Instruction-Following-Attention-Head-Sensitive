@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+mlp_match_attn_s1,0.634,0.7146,0.6636,0.747,0.6898

@@ -1,342 +1,127 @@
-# Attention Compensation for Quantized Models
+# Instruction-Preserving Quantization (working title)
 
-This repository contains code to test whether **attention compensation** can repair instruction-following degradation in quantized language models.
+Diagnose which attention heads causally carry instruction following (IF) in
+instruct LLMs, show weight PTQ disproportionately damages them, and protect
+those heads' weight slices at higher precision during quantization.
+Target: ARR 2026-10-12 → NAACL 2027. Full plan: [NAACL2027_proposal.md](NAACL2027_proposal.md).
 
-## 📋 Overview
+## Layout
 
-**Problem:** Quantization (4-bit, 3-bit) degrades instruction-following capabilities.
+```
+src/                    new pipeline (W1: diagnosis + dissociation; W2: protection)
+  common.py             model loading (GPTQ-aware), head geometry, ablation hooks
+  diagnose_heads.py     stages: calib / screen (FP-vs-quant head deviation) / ablate
+  dissociation.py       overlap of head rankings: causal vs act vs grad vs dev
+  quantize_gptq.py      GPTQModel quantization + smoke test
+  protect_eval.py       W2: head-slice protection (post-hoc fp restoration) + eval
+  gptq_core.py          W3/v2: masked GPTQ (in-loop protection hold-out)
+  quantize_protected.py W3/v2: protected quantization driver -> fake-quant ckpt
+  tacq_salience.py      W3/v2: TaCQ saliency |W|*|grad|*|dW| (IF-conditioned)
+  score_ifeval.py       official-checker scoring wrapper -> scores CSV
+jobs/                   SGE submission scripts (H200 hostgroup gpu@@zzheng3_Lab)
+backup/                 old DAS-era pipeline + artifacts (reference only)
+paper/                  last submission: latex, figures, OpenReview reviews PDF
+third_party/            vendored official IFEval evaluator (google-research)
+data/                   ifeval_input_data.jsonl (541), calib_prompts.jsonl (512)
+runs/                   experiment outputs (create as needed)
+```
 
-**Hypothesis:** Degradation is caused by attention weight changes in critical heads.
+## Cluster (CRC, qsub)
 
-**Solution:** Artificially boost attention weights on degraded heads during inference.
+Code + models + caches live under `/store01/yshi4/jzheng7` (`HF_HOME` is set by
+the job scripts; conda env `IFEval`). All jobs run on the H200 hostgroup
+`gpu@@zzheng3_Lab` (set in every `jobs/*.sh`).
 
-## 🚀 Quick Start
+```
+qsub jobs/w0_quantize.sh                          # fresh GPTQ 2/3/4/8-bit + smoke test
+qsub -hold_jid IFH_W0_quantize jobs/w1_quant_baselines.sh  # full-541 IFEval per bit
+qsub -hold_jid IFH_W0_quantize jobs/w1_calib.sh   # means + salience + screen + dissociation
+qsub -hold_jid IFH_W1_calib jobs/w1_ablate.sh     # task array (11 configs in parallel)
+qsub jobs/w2_protect.sh                           # W2: head-slice protection arms (9 tasks, full 541)
+qsub jobs/w2b_decompose.sh                        # W2b: qkv/o decomposition + MLP control
+qsub jobs/w2c_budget.sh                           # W2c: concentration curve (attn_all, 2-25%)
+qsub jobs/w3_salience.sh                          # W3: TaCQ saliency (needed by w3_inloop arm 3/5)
+qsub -hold_jid IFH_W3_salience jobs/w3_inloop.sh  # W3/v2: IN-LOOP protected GPTQ, 5 arms
+# W2 verdict (2026-08-27): post-hoc restoration at 0.5% budget = null across
+# 16 arms (noop bit-identical to baseline). See NAACL2027_proposal.md ⚡ section.
+awk 'FNR==1 && NR!=1 {next} 1' runs/scores_*.csv > runs/scores.csv   # merge
+```
 
-### Prerequisites
+Quantized checkpoints: always OURS from `jobs/w0_quantize.sh` (GPTQModel,
+c4-128×2048, g128, sym, desc_act; protocol saved in each checkpoint's
+QUANT_PROTOCOL.json). Old Quant_Lib checkpoints are deleted; the HF mirror
+(irish-quant/qwen25) is integrity-unverified — don't use it.
+(extra deps: `pip install gptqmodel datasets absl-py langdetect nltk immutabledict`)
 
-1. **Environment setup** (one-time):
-   ```bash
-   conda create -n attention python=3.10
-   conda activate attention
-   pip install torch transformers accelerate auto-gptq optimum
-   pip install pandas numpy scipy matplotlib tqdm pyyaml
+⚠ **3-bit garbage bug — root cause found (2026-08-25):** the 3-bit checkpoint
+emitted *identical* garbage for different prompts under BOTH Triton and TORCH
+backends → the packed weights themselves were corrupt. This matches known
+upstream gptqmodel bugs: 3-bit packing regression (fixed v2.0.0) and 3-bit
+Triton dequant issues (fixed v5.6.2-12); see
+[GPTQModel#1278](https://github.com/ModelCloud/GPTQModel/issues/1278).
+**Rules:** (1) pinned stack, verified importable 2026-08-25 — do NOT run bare
+`pip install -U` in this env again; any change goes in with `--no-deps` and
+must pass the four-package import check:
+`torch==2.9.0+cu128` (never touch) · `gptqmodel==5.6.12` (has the 3-bit fix) ·
+`transformers==4.57.6` · `huggingface_hub==0.36.2` · `torchao==0.16.0`
+(cpp-ext skip warning is harmless) · `kernels` UNINSTALLED (0.16.1 needs
+hub≥1.0 and crashes transformers 4.x import). Re-quantize ALL bits on this
+stack (recorded in each checkpoint's QUANT_PROTOCOL.json);
+(2) every GPTQ load still goes through `common.load_model` with the
+plain-PyTorch backend (`IFH_GPTQ_BACKEND=TORCH` default) as belt-and-braces;
+(3) never trust a checkpoint whose smoke test wasn't inspected. The old
+"gptq3 garbled / drops 15 pts" numbers remain untrusted; true numbers come
+from `jobs/w1_quant_baselines.sh` after re-quantization.
+
+Selectivity read-out: Δ(top32_dev3 − screen_base) vs Δ(rand32_s* − screen_base).
+
+Bit-width strategy: 3-bit GPTQ = primary quantitative battleground (pending
+re-measurement on clean checkpoints); 2-bit = boundary analysis only (CASIA:
+computation collapse, training-free repair hopeless); 4-bit = tail-failure
+story (flips / per-constraint metrics, not averages). AWQ ecosystem is
+4-bit-only, so low-bit runs use GPTQ + RTN; AWQ enters at 4-bit for quantizer
+generality.
+
+## W1 workflow
+
+1. **Data (prepared 2026-08-25).**
+   `data/ifeval_input_data.jsonl`: official IFEval input, 541 prompts.
+   `data/calib_prompts.jsonl`: 512 Alpaca instructions (no-input subset,
+   30–1200 chars, seed 20260825), prefix-deduplicated against IFEval.
+2. **Calibrate:** `python src/diagnose_heads.py calib --calib-file data/calib_prompts.jsonl`
+3. **Baseline + ablations:**
    ```
-
-2. **Prepare data**:
-   - Run IFEval benchmark on FP16 model → `fp16_samples.jsonl`
-   - Run IFEval benchmark on quantized model → `quant_samples.jsonl`
-
-### Running Experiments
-
-**Option 1: Automated pipeline (recommended)**
-```bash
-# 1. Edit configuration section at top of script
-vim run_compensation_experiment.sh
-
-# 2. Submit to cluster
-qsub run_compensation_experiment.sh
-
-# 3. Check results
-cat artifacts/your_experiment_name/summary.csv
-```
-
-**Option 2: Manual step-by-step execution**
-
-Useful for debugging or running specific stages:
-
-```bash
-# Setup environment
-conda activate attention
-export BASE_DIR="/users/jzheng7/ifattn"
-export OUTPUT_DIR="$BASE_DIR/artifacts/my_test"
-mkdir -p "$OUTPUT_DIR"
-
-# Step 1: Select samples
-python select_samples_for_compensation.py \
-  --fp16_samples /path/to/fp16_samples.jsonl \
-  --quant_samples /path/to/quant_samples.jsonl \
-  --strategy failure_only \
-  --max_samples 5 \
-  --output $OUTPUT_DIR/selected_prompts.jsonl
-
-# Step 2: Extract FP16 attention
-python dump_attn.py \
-  --model_id "Qwen/Qwen2.5-7B-Instruct" \
-  --run_tag "fp16" \
-  --prompts_jsonl $OUTPUT_DIR/selected_prompts.jsonl \
-  --out_dir $OUTPUT_DIR
-
-# Step 3: Extract quantized attention
-python dump_attn.py \
-  --model_id "/path/to/quantized_model" \
-  --run_tag "gptq4" \
-  --prompts_jsonl $OUTPUT_DIR/selected_prompts.jsonl \
-  --out_dir $OUTPUT_DIR
-
-# Step 4: Identify critical heads
-python identify_critical_heads.py \
-  --fp16_attn $OUTPUT_DIR/attn_fp16.npz \
-  --quant_attn $OUTPUT_DIR/attn_gptq4.npz \
-  --top_k 10 \
-  --out_dir $OUTPUT_DIR
-
-# Step 5: Run compensation (repeat for each alpha)
-python eval_ifeval_with_compensation.py \
-  --model_path "/path/to/quantized_model" \
-  --ifeval_data $OUTPUT_DIR/selected_prompts.jsonl \
-  --attn_fp16 $OUTPUT_DIR/attn_fp16.npz \
-  --attn_quant $OUTPUT_DIR/attn_gptq4.npz \
-  --top_heads $OUTPUT_DIR/critical_heads_gptq4.json \
-  --alpha_list 0.0 \
-  --max_samples 5 \
-  --max_new_tokens 1280 \
-  --output $OUTPUT_DIR/compensation_alpha0.0.jsonl
-
-# Step 6: Analyze results
-python analyze_compensation_results.py \
-  --results $OUTPUT_DIR/compensation_alpha*.jsonl \
-  --output $OUTPUT_DIR/summary.csv \
-  --detailed_output $OUTPUT_DIR/detailed_analysis.csv
-```
-
-## 📂 File Structure
-
-```
-ifattn/
-├── run_compensation_experiment.sh    # Main pipeline (edit CONFIGURATION section)
-├── select_samples_for_compensation.py
-├── dump_attn.py
-├── identify_critical_heads.py
-├── eval_ifeval_with_compensation.py
-├── analyze_compensation_results.py
-└── artifacts/
-    └── {experiment_name}/
-        ├── selected_prompts.jsonl
-        ├── attn_fp16.npz
-        ├── attn_{quant_method}.npz
-        ├── critical_heads_{quant_method}.json
-        ├── compensation_alpha*.jsonl
-        ├── summary.csv
-        └── detailed_analysis.csv
-```
-
-## 🔧 Pipeline Stages
-
-### Stage 1: Sample Selection
-Selects test cases based on strategy:
-- `failure_only`: FP16✓ but Quant✗ (recommended)
-- `both_wrong`: Both models fail
-- `all`: All samples
-
-**Output:** `selected_prompts.jsonl`
-
-### Stage 2: Attention Extraction
-Extracts attention weights on instruction tokens for both FP16 and quantized models.
-
-**Output:** `attn_fp16.npz`, `attn_{quant_method}.npz`
-
-### Stage 3: Critical Head Identification
-Computes degradation Δ = A_fp16 - A_quant for each attention head.
-Identifies top-K heads with highest degradation.
-
-**Output:** `critical_heads_{quant_method}.json`
-
-### Stage 4: Compensation Testing
-Tests multiple compensation strengths (alpha values):
-- α=0.0: Baseline (no compensation)
-- α=5.0: Moderate compensation
-- α=10.0: Strong compensation
-- α=20.0: Aggressive compensation
-
-**Formula:** A'[head] = A[head] + α × (A_fp16[head] - A_quant[head])
-
-**Output:** `compensation_alpha{X}.jsonl` for each alpha
-
-### Stage 5: Result Analysis
-Compares outputs across alpha values:
-- Summary statistics (pass rates, improvements)
-- Language error detection
-- Quality collapse detection (token repetition, degeneration)
-
-**Output:** `summary.csv`, `detailed_analysis.csv`
-
-## 📊 Configuration Variables
-
-### Required Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `FP16_MODEL` | Full-precision model | `"Qwen/Qwen2.5-7B-Instruct"` |
-| `QUANT_MODEL` | Quantized model path | `"/path/to/gptq_4bit"` |
-| `QUANT_METHOD` | Quantization tag | `"gptq4"`, `"awq4"` |
-| `FP16_SAMPLES` | FP16 IFEval results | `"fp16_samples.jsonl"` |
-| `QUANT_SAMPLES` | Quant IFEval results | `"quant_samples.jsonl"` |
-
-### Optional Parameters
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SAMPLE_STRATEGY` | `"failure_only"` | Sample selection strategy |
-| `MAX_SAMPLES` | `5` | Number of samples to test |
-| `TOP_K_HEADS` | `10` | Number of heads to compensate |
-| `ALPHA_VALUES` | `"0.0 5.0 10.0 20.0"` | Compensation strengths |
-| `MAX_GEN_TOKENS` | `1280` | Max generation length |
-
-## 🧪 Example Experiments
-
-### Quick Configuration Reference
-
-Edit the `CONFIGURATION` section in `run_compensation_experiment.sh`:
-
-### Experiment 1: GPTQ 4-bit
-```bash
-EXPERIMENT_NAME="gptq4_compensation"
-QUANT_MODEL="/path/to/gptq_4bit"
-QUANT_METHOD="gptq4"
-ALPHA_VALUES="0.0 5.0 10.0 20.0"
-MAX_SAMPLES=5
-```
-
-### Experiment 2: AWQ 4-bit
-```bash
-EXPERIMENT_NAME="awq4_compensation"
-QUANT_MODEL="/path/to/awq_4bit"
-QUANT_METHOD="awq4"
-ALPHA_VALUES="0.0 5.0 10.0 20.0"
-MAX_SAMPLES=5
-```
-
-### Experiment 3: Large-scale test
-```bash
-EXPERIMENT_NAME="gptq4_fullscale"
-QUANT_MODEL="/path/to/gptq_4bit"
-QUANT_METHOD="gptq4"
-MAX_SAMPLES=24  # All failure cases
-ALPHA_VALUES="0.0 2.5 5.0 7.5 10.0 15.0 20.0"
-MAX_GEN_TOKENS=2048
-```
-
-### Experiment 4: Test different models
-```bash
-# Llama
-FP16_MODEL="meta-llama/Llama-3.1-8B-Instruct"
-QUANT_MODEL="/path/to/llama_gptq4"
-
-# Mistral
-FP16_MODEL="mistralai/Mistral-7B-Instruct-v0.2"
-QUANT_MODEL="/path/to/mistral_gptq4"
-```
-
-## 📈 Understanding Results
-
-### Summary Table (summary.csv)
-
-| Column | Meaning |
-|--------|---------|
-| `alpha` | Compensation strength |
-| `avg_pass_rate` | Average IFEval pass rate |
-| `samples_improved` | Number of samples that improved vs baseline |
-| `language_errors` | Number of language confusion cases |
-| `quality_issues` | Number of degenerate outputs |
-
-### Key Findings Indicators
-
-- 🎯 **Language Fix**: Repairs language confusion (e.g., German→English)
-- ⚠️ **Quality Collapse**: Over-compensation causes degeneration
-- ✅ **Improved**: Higher pass rate than baseline
-- ❌ **Degraded**: Lower pass rate than baseline
-
-## 🔬 Research Use
-
-### For Paper Submissions
-
-1. **Run full-scale experiments**:
-   - Test all failure cases (`MAX_SAMPLES=24+`)
-   - Test multiple quantization methods (GPTQ, AWQ)
-   - Test multiple models (Qwen, Llama, Mistral)
-
-2. **Generate figures**:
-   - Heatmaps: `attn_fp16.npz` vs `attn_quant.npz`
-   - Line plots: Pass rate vs alpha
-   - Bar charts: Per-category improvements
-
-3. **Report metrics**:
-   - Optimal alpha value
-   - Improvement rate
-   - Failure mode analysis
-
-### Citation
-
-```bibtex
-@inproceedings{yourname2025attention,
-  title={Attention Compensation for Repairing Instruction-Following in Quantized LLMs},
-  author={Your Name},
-  booktitle={Proceedings of ACL},
-  year={2025}
-}
-```
-
-## 🐛 Troubleshooting
-
-### Issue: "No samples selected"
-**Solution:** Check that FP16 and quant samples have overlapping keys and different pass/fail statuses.
-
-### Issue: "Attention is None"
-**Solution:** Ensure model uses eager attention mode (not Flash Attention). See `dump_attn.py` for fixes.
-
-### Issue: "Out of memory"
-**Solution:** Reduce `MAX_SAMPLES` or `MAX_GEN_TOKENS`, or use a GPU with more VRAM.
-
-### Issue: "All alpha values give same output"
-**Solution:** Increase alpha values (try 10.0, 20.0, 50.0) or check if compensation hooks are registered correctly.
-
-### Issue: "Script takes too long"
-**Solution:** Run stages manually (Option 2) and use previously computed attention files to skip extraction steps.
-
-## 💡 Tips for Manual Execution
-
-When running steps manually (Option 2), you can:
-
-1. **Reuse attention files across experiments**
-   ```bash
-   # Extract attention once
-   python dump_attn.py --model_id "..." --run_tag "fp16" ...
-   
-   # Use same attention for multiple alpha tests
-   python eval_ifeval_with_compensation.py --alpha_list 10.0 ...
-   python eval_ifeval_with_compensation.py --alpha_list 15.0 ...
+   python src/diagnose_heads.py ablate --prompts data/ifeval_input_data.jsonl --tag baseline
+   python src/diagnose_heads.py ablate --prompts data/ifeval_input_data.jsonl \
+       --topk-from runs/dev_ranking_gptq3.csv --k 32 --tag top32_dev3
+   python src/diagnose_heads.py ablate --prompts data/ifeval_input_data.jsonl \
+       --random 32 --seed 0 --tag rand32_s0
    ```
-
-2. **Test single alpha value quickly**
-   ```bash
-   # Skip analysis, just test one alpha
-   python eval_ifeval_with_compensation.py \
-     --alpha_list 10.0 \
-     --max_samples 3 \
-     ...
+   Screening ranking: `runs/dev_ranking_gptq3.csv` — fresh per-head FP-vs-quant
+   output deviation from `diagnose_heads.py screen` (quantizer-agnostic; works
+   with any GPTQ/AWQ/RTN checkpoint). Old 10-sample ISI artifacts are kept only
+   as a robustness cross-check (`runs/isi_old_ranking.csv`), never used downstream.
+4. **Score with the OFFICIAL checker** (vendored in `third_party/`, smoke-tested):
    ```
-
-3. **Debug attention extraction**
-   ```bash
-   # Test on 1 sample first
-   python dump_attn.py \
-     --prompts_jsonl <(head -1 selected_prompts.jsonl) \
-     ...
+   python src/score_ifeval.py --responses runs/<model>/<tag>/responses.jsonl --tag <tag>
    ```
-
-4. **Parallel alpha testing**
-   ```bash
-   # Run different alphas in parallel on different GPUs
-   CUDA_VISIBLE_DEVICES=0 python eval_ifeval_with_compensation.py --alpha_list 5.0 &
-   CUDA_VISIBLE_DEVICES=1 python eval_ifeval_with_compensation.py --alpha_list 10.0 &
-   CUDA_VISIBLE_DEVICES=2 python eval_ifeval_with_compensation.py --alpha_list 20.0 &
-   wait
+   Appends prompt/inst × strict/loose + avg4 to `runs/scores.csv`.
+5. **Dissociation (key insight experiment — run this first):**
    ```
+   python src/dissociation.py --grad-calib data/calib_prompts.jsonl \
+     --rankings act=runs/diag/act_salience.csv dev3=runs/dev_ranking_gptq3.csv \
+     --out runs/dissociation
+   ```
+   Low Jaccard between causal and act/grad ⇒ salience-based protection cannot
+   find IF-heads ⇒ targeted protection is necessary (the paper's core card).
 
-## 📧 Contact
+## Protocol (fixed 2026-08, do not tune post-hoc)
 
-For questions or issues, please open a GitHub issue or contact [your email].
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
+- Head unit = query head (GQA: k/v handled per kv-group; see common.py).
+- Mean ablation with calibration-set means; greedy decoding; max_new_tokens=1280.
+- Screening on 100 stratified IFEval prompts; validation on full 541.
+- IF-head criterion: Δ(prompt strict acc) under ablation, averaged over ≥3
+  random-control comparisons; report per-constraint-type breakdown.
+- GPTQ inference backend: TORCH only (see kernel-bug rule above).
+- Go/No-Go (9/7): top-k causal heads show selective IF damage vs random-k
+  (else pivot to the systematic-analysis paper, plan §6).

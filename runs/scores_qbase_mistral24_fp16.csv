@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+qbase_mistral24_fp16,0.6987,0.7794,0.7375,0.8141,0.7574

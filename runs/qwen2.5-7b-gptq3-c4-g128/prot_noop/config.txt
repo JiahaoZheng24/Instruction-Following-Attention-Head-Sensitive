@@ -1,0 +1,8 @@
+quant_model=/store01/yshi4/jzheng7/models/qwen2.5-7b-gptq3-c4-g128
+fp_source=Qwen/Qwen2.5-7B-Instruct
+heads=[]
+n=0
+kv=False
+projs=all
+mlp_channels=0
+protected_params=0

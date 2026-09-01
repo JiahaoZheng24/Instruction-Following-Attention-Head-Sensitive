@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+mlp_b_s2,0.6377,0.7194,0.6691,0.7482,0.6936

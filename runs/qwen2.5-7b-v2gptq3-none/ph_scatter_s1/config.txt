@@ -1,0 +1,5 @@
+quant_ckpt=/store01/yshi4/jzheng7/models/qwen2.5-7b-v2gptq3-none
+budget=37624064
+seed=1
+restored=37629585
+mode=posthoc_scatter

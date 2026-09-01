@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2_tacq_cs1,0.634,0.717,0.6839,0.7602,0.6988

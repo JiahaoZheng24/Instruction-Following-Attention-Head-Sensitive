@@ -1,0 +1,512 @@
+{"prompt": "Generate a creative text in 100 words."}
+{"prompt": "Write potential job opportunity titles for a professor of language studies."}
+{"prompt": "What is User Acceptance Testing?"}
+{"prompt": "Construct a poem with the words 'spring', 'joy', and 'rain'."}
+{"prompt": "Find the best sports car that costs less than $30,000."}
+{"prompt": "What is the primary purpose of using a while loop in programming?"}
+{"prompt": "Write a story about a person who decides to move to a new town."}
+{"prompt": "Generate a password containing 8 characters with one number and one special character."}
+{"prompt": "How do you say hello in French?"}
+{"prompt": "What are the four main components of an information system?"}
+{"prompt": "Identify the primary differences between a neuron and a synapse."}
+{"prompt": "What is the purpose of the National Science Foundation?"}
+{"prompt": "Describe the importance of renewable energy"}
+{"prompt": "Write a piece of advice for someone going through a difficult time"}
+{"prompt": "Construct a query to select all the sales data from 2019."}
+{"prompt": "Design a game for children about saving money."}
+{"prompt": "How does global warming affect sea levels?"}
+{"prompt": "Create an original story about an elephant"}
+{"prompt": "Find the missing number in the sequence: 3, 5, 7, __, 13"}
+{"prompt": "Name one big data tool used for processing and visualizing data."}
+{"prompt": "Describe what a \"good\" digital assistant should be capable of doing."}
+{"prompt": "Generate a drawing of an abstract artwork"}
+{"prompt": "Generate 10 song titles describing friendship."}
+{"prompt": "Create a 3-dimensional array in Python"}
+{"prompt": "Generate an example of a conversation between two people about the weather in San Francisco."}
+{"prompt": "Describe the features of an ideal digital assistant."}
+{"prompt": "Compute the logarithm to the base 2 of the number 9"}
+{"prompt": "Make up a new type of sandwich."}
+{"prompt": "What is the approximate population of New York City as of 2021?"}
+{"prompt": "Explain the three laws of classical mechanics."}
+{"prompt": "Describe a computer virus and its effects."}
+{"prompt": "Create a haiku poem with three lines containing 5, 7, and 5 syllables respectively."}
+{"prompt": "List three software development methods."}
+{"prompt": "Describe a way to recycle plastic"}
+{"prompt": "Name five types of species that live in the desert"}
+{"prompt": "Create a headline for a news article about the health benefits of yoga."}
+{"prompt": "Generate a list of 5 books that teach children about emotions."}
+{"prompt": "Brainstorm five different ways to ask someone on a date."}
+{"prompt": "Craft a description of a rocket"}
+{"prompt": "Name two commodities traded in the Forex market."}
+{"prompt": "Imagine you are stranded in the wilderness. List five items you would completely need for survival."}
+{"prompt": "Write a business email asking for a raise."}
+{"prompt": "Construct a system for categorizing customer inquiries by type."}
+{"prompt": "Generate three questions that could be used in an interview with a machine learning expert."}
+{"prompt": "Write a definition of the term \"natural selection\""}
+{"prompt": "Summarize how global warming affects the planet."}
+{"prompt": "Think of a creative way to involve the audience in a presentation."}
+{"prompt": "Write a short story that is connected to the theme of courage."}
+{"prompt": "What are the main differences between top-down and bottom-up design approaches?"}
+{"prompt": "List the three types of clouds and give an example of each."}
+{"prompt": "Explain why the development of solar energy is important"}
+{"prompt": "How can one develop a successful career in accounting?"}
+{"prompt": "Give a brief explanation of the term \"variable\" in computer science."}
+{"prompt": "Design a business card for a tax accountant."}
+{"prompt": "Describe a method for evaluating a GPT model's performance."}
+{"prompt": "Differentiate between a data set and a data frame."}
+{"prompt": "Construct a financial model that includes the income statement, balance sheet and cash flow statements."}
+{"prompt": "What are the benefits of learning a foreign language?"}
+{"prompt": "Construct a sentence with the words \"seize\", \"opportunity\", and \"enjoyment\"."}
+{"prompt": "Write a composition about your most memorable holiday."}
+{"prompt": "Write a limerick about traveling in a hot air balloon."}
+{"prompt": "Describe the flow of oxygen in the human body."}
+{"prompt": "What is the best/most efficient way to heat a large space?"}
+{"prompt": "Describe the windy weather today using figurative language such as metaphor and simile."}
+{"prompt": "Create a table mapping temperatures in Celsius to Fahrenheit"}
+{"prompt": "List 3 factors that can influence probability."}
+{"prompt": "Describe a time when you had to take a big risk in order to get a desired outcome."}
+{"prompt": "Construct an analogy between a bird and a robot."}
+{"prompt": "Train a SVM model for the given dataset."}
+{"prompt": "Determine if the given sentence is a fragment or complete: \"Waiting at the bus stop.\""}
+{"prompt": "You have been asked to create a story using the following words: warm, cozy, blanket."}
+{"prompt": "Create a new character for a classic Disney movie."}
+{"prompt": "Translate the following sentence to Spanish: The cat is sleeping on the bed"}
+{"prompt": "Explain the Stock Market to a 10-year-old."}
+{"prompt": "Provide three examples of popular streaming services."}
+{"prompt": "Find the most similar historic event to World War II."}
+{"prompt": "Describe a situation when you had to show mental strength."}
+{"prompt": "Suggest a method to optimize a website’s performance."}
+{"prompt": "Explain why access control is important for web security."}
+{"prompt": "Generate a list of strategies for developing a successful business."}
+{"prompt": "Write a 3-4 sentence explanation of how color impacts design."}
+{"prompt": "Provide an example for a palindrome."}
+{"prompt": "Analyze the implications of using a mobile-based payment system in a developing country."}
+{"prompt": "Find the area of a triangle with sides of 12 cm, 15 cm, and 18 cm."}
+{"prompt": "Construct a mathematical equation with an answer of 6."}
+{"prompt": "Create a speech that encourages people to donate to disaster relief programs."}
+{"prompt": "Generate a scientific hypothesis related to global warming"}
+{"prompt": "Write a short definition of the term \"artificial neural network\"."}
+{"prompt": "Compare and contrast DNA and RNA."}
+{"prompt": "Prove that 1+2+3+4+5 is equal to 15."}
+{"prompt": "Create five realistic example applications that could make use of artificial intelligence."}
+{"prompt": "Construct a boolean query to find all documents that contain the words \"GPT-2\" and \"language model\""}
+{"prompt": "Explain why filing an income tax return is mandatory."}
+{"prompt": "Formulate a hypothesis for why the price of gold has risen in the past two years."}
+{"prompt": "Explain the difference between HTML and CSS."}
+{"prompt": "Give me a list of five adjectives to describe a playground."}
+{"prompt": "Analyze the differences between blockchain and traditional databases."}
+{"prompt": "Evaluate the effectiveness of the current voting methods in the United States."}
+{"prompt": "Name three benefits of using a chatbot to answer customer inquiries."}
+{"prompt": "Write a paragraph that explains the importance of recycling."}
+{"prompt": "Describe the process of how a computer generates a response to a query."}
+{"prompt": "Develop a list of five tips for writing a successful resume."}
+{"prompt": "What kind of impact has social media had on the way people communicate?"}
+{"prompt": "Describe a medical condition that can be treated with antibiotics."}
+{"prompt": "Generate a poem about Earth using alliteration."}
+{"prompt": "List 5 famous historical figures"}
+{"prompt": "Describe how magnetic fields are generated."}
+{"prompt": "Identify three possible job scenarios where a robot could potentially replace a human worker."}
+{"prompt": "Describe the scene of the beach during sunrise."}
+{"prompt": "Tell me an adjective to describe a river"}
+{"prompt": "What is an example of a type of mutation that can cause a serious health disorder?"}
+{"prompt": "What does a blockchain engineer do?"}
+{"prompt": "Identify five things a business can do to increase customer loyalty"}
+{"prompt": "What is the origin of this phrase: ‘to be born with a silver spoon’"}
+{"prompt": "Write a song lyric about birds."}
+{"prompt": "Name three digital marketing platforms"}
+{"prompt": "Explain the difference between a hard disk and a solid state drive."}
+{"prompt": "Imagine you are going on a camping trip with your family. How would you plan ahead?"}
+{"prompt": "What are the three common attributes of a narrative poem?"}
+{"prompt": "Rewrite the following sentence to make it more concise:\n\n\"The development of technology has revolutionized our lives in many ways and changed the way we think and interact with each other\""}
+{"prompt": "Explain what rare earth elements are and list some examples."}
+{"prompt": "Name a novel set in the 19th century."}
+{"prompt": "Construct a sentence describing a person with the following adjectives: generous, reliable, and humorous."}
+{"prompt": "Describe the dog's behavior when it sees a rabbit."}
+{"prompt": "Build a bucket list of five activities."}
+{"prompt": "Suggest a brand name for a drinks company producing innovative sparkling waters."}
+{"prompt": "Recommend two strategies for efficient learning"}
+{"prompt": "Describe the evolution of communication technology."}
+{"prompt": "What are the differences between a web developer and a software developer?"}
+{"prompt": "Offer a suggestion on how to motivate employees."}
+{"prompt": "Suggest two methods to enhance customer satisfaction."}
+{"prompt": "Explain the role of the Executive Branch of the U.S. government."}
+{"prompt": "Where would you find the most modern technologies being used in the world?"}
+{"prompt": "Create a business plan for an online business."}
+{"prompt": "Define the term \"regression analysis\""}
+{"prompt": "What is the largest organ in the human body?"}
+{"prompt": "Explain the Iron Law of Oligarchy."}
+{"prompt": "Create a Word or PowerPoint document with 10 slides."}
+{"prompt": "Describe the function of an artificial limb."}
+{"prompt": "Create a 10-step guide on how to start a business."}
+{"prompt": "Name three different species of dinosaur."}
+{"prompt": "Describe how artificial intelligence is beginning to impact the global economy."}
+{"prompt": "Suggest one activity to do indoors."}
+{"prompt": "Give four example of traditional Chinese dishes"}
+{"prompt": "What is the scientific term for the process of photosynthesis?"}
+{"prompt": "Describe the significance of the color blue"}
+{"prompt": "Name an advantage of learning a second language."}
+{"prompt": "Describe a popular tourist destination in France."}
+{"prompt": "Compare and contrast cost structure and return on investment for two different marketing strategies"}
+{"prompt": "Identify a sustainable practice that helps the environment."}
+{"prompt": "Provide five idioms related to the moon."}
+{"prompt": "Compose an aphorism about life"}
+{"prompt": "Provide a context to this sentence: \"He suggested the theory\""}
+{"prompt": "Describe a professional email etiquette for the workplace."}
+{"prompt": "Write a description of a cloudless summer sky."}
+{"prompt": "Write a sentence with the same meaning as today is nice."}
+{"prompt": "Construct a dialogue between a customer and a store clerk regarding a product."}
+{"prompt": "Let the assistant write a science fiction story."}
+{"prompt": "Name four steps to combat climate change."}
+{"prompt": "Create a two-part question to ask someone about their day."}
+{"prompt": "Edit the following sentence so that it is more concise:\n\nThe meeting at the office must be rescheduled to a later date."}
+{"prompt": "Find the area of a rectangle whose length is 10 cm and breadth is 4 cm."}
+{"prompt": "Explain how to make a triangle out of three sticks?"}
+{"prompt": "What is a metaphor for a dream?"}
+{"prompt": "Name three Latin American countries."}
+{"prompt": "Generate a creative name for a lifestyle blog targeting young professionals."}
+{"prompt": "Write a 3-5 sentence story in present tense."}
+{"prompt": "How will you use a for loop in C++?"}
+{"prompt": "Generate two realistic scenarios on how to avoid a traffic ticket."}
+{"prompt": "Generate a creative poem using natural language processing."}
+{"prompt": "Suggest a way to remember the Japanese characters for \"tsuki\" and \"yume\"."}
+{"prompt": "Explain why forest fires are often beneficial to an ecosystem."}
+{"prompt": "Design a furniture piece that is both attractive and functional"}
+{"prompt": "Build a machine learning model to predict customer churn."}
+{"prompt": "Write a proposal for a fundraising event for Covid-19 relief"}
+{"prompt": "Generate a sentence using the words \"caffeine\", \"hunter\", and \"monday\"."}
+{"prompt": "What is the ideal length of a blog post?"}
+{"prompt": "Generate a haiku about the Spring season."}
+{"prompt": "Explain what DNA is in no more than 4 sentences."}
+{"prompt": "List 3 common techniques used for text summarization."}
+{"prompt": "Take 2 minutes for a mindfulness practice"}
+{"prompt": "Generate a list of topics that would be suitable for a presentation on library management."}
+{"prompt": "What is the best way to reduce energy consumption at home?"}
+{"prompt": "What is the volume of a rectangular prism with dimensions 3, 4 and 5 meters?"}
+{"prompt": "Name 6 plants that grow in a subtropical climate."}
+{"prompt": "Explain how neural networks learn."}
+{"prompt": "Describe the different parts of a camera."}
+{"prompt": "Generate a fake username using 5 characters long."}
+{"prompt": "You are requested to generate a list of projects that you can implement over the next 3 months."}
+{"prompt": "Create a quiz about the solar system."}
+{"prompt": "List three common uses for machine learning in finance."}
+{"prompt": "Describe a situation that demonstrates a strong sense of leadership."}
+{"prompt": "Describe the difference between an imperative sentence and a declarative sentence."}
+{"prompt": "Construct a haiku about summer"}
+{"prompt": "Write a definition of \"photoshop\"."}
+{"prompt": "Generate an address for a company in an imaginary city."}
+{"prompt": "Summarize the benefits of using ground robots in hazardous environments."}
+{"prompt": "Generate a 3 digit number divisible by 4."}
+{"prompt": "Name three famous paintings by Pablo Picasso."}
+{"prompt": "Describe a difficulty you had with school when you were younger."}
+{"prompt": "Identify the biggest challenges faced by AI experts"}
+{"prompt": "Suggest an algorithm to classify musical composition as ‘romantic’ or ‘modern’."}
+{"prompt": "What is the most common type of sneaker for men?"}
+{"prompt": "How many kilograms are in 4.5 tons?"}
+{"prompt": "Create a list of five different uses for artificial intelligence."}
+{"prompt": "Add two adjectives to describe the word \"beauty\""}
+{"prompt": "Write a story using these 5 words: teacher, solve, maze, notebook, structure"}
+{"prompt": "Describe an algorithm for calculating the maximum value of a given array"}
+{"prompt": "Provide an example of the proper way one should greet someone in German."}
+{"prompt": "Generate a plausible sentence that reflects a certain feeling"}
+{"prompt": "Create a unique instance of the word \"beauty\" using a simile."}
+{"prompt": "Generate a dating profile for an individual who is an avid traveler and nature lover."}
+{"prompt": "Generate a suitable title for a short story involving an alien and a robot."}
+{"prompt": "Who is the current president of Mexico?"}
+{"prompt": "Compose a poem using the following words: ‘autumn’, ‘golden’, ‘breeze’, and ‘forest’."}
+{"prompt": "Generate a creative idea for a new social media platform."}
+{"prompt": "Construct an example of a valid CSS rule."}
+{"prompt": "Name the five positions of chess."}
+{"prompt": "Give an example of how technology can improve the classroom."}
+{"prompt": "Identify a physical material indicated by the phrase \"brittle\"."}
+{"prompt": "Summarize the history of the Roman Empire"}
+{"prompt": "What is the main benefit of mobile banking?"}
+{"prompt": "Provide two tips on how to improve decision-making skills."}
+{"prompt": "Generate a list of items to pack for a night camping trip."}
+{"prompt": "Give an example of how technology has improved communication."}
+{"prompt": "Explain why solar energy is a better alternative to fossil fuels."}
+{"prompt": "How would you correctly use the word \"anonymity\" in a sentence?"}
+{"prompt": "Put together a business plan for a new restaurant."}
+{"prompt": "Create a story that ends with the line \"The End\"."}
+{"prompt": "Describe the Three Gorges Dam of China."}
+{"prompt": "Compare and contrast Jane Austen and Charlotte Bronte's writing styles."}
+{"prompt": "How many continents are there on Earth?"}
+{"prompt": "List five tips to improve your diet."}
+{"prompt": "Arrange the words \"barbecue\" and \"Saturday\" into a meaningful sentence."}
+{"prompt": "What are the biggest advantages of cloud computing?"}
+{"prompt": "List three of the most dangerous jobs in the US."}
+{"prompt": "Create a fictional character’s monologue introducing themselves."}
+{"prompt": "Explain what a race condition is in a computer program."}
+{"prompt": "Sort the following list according to size: skyscraper, shed, house, bridge."}
+{"prompt": "Design an indoor workout plan for a beginner."}
+{"prompt": "Find a unique way to use a rubber band."}
+{"prompt": "Generate a list of novel robotic applications"}
+{"prompt": "Explain what a PCR reaction is."}
+{"prompt": "Summarize the life of George Washington."}
+{"prompt": "Re-word the proverb, \"The early bird catches the worm\""}
+{"prompt": "Construct an analogy to compare the moon and the sun"}
+{"prompt": "Name 5 important events in British history."}
+{"prompt": "Take the phrase \"make an effort\" and replace it with a phrase of the same connotation."}
+{"prompt": "Write a one-paragraph summary about Isaac Newton's mathematical discoveries."}
+{"prompt": "Explain what machine learning is."}
+{"prompt": "Calculate the sum of 3, 17, and 37"}
+{"prompt": "Rewrite this sentence using active voice: The instructions were given by me"}
+{"prompt": "Calculate the sum of this series: 5+10+15+20+25"}
+{"prompt": "Is playing sports an important part of your daily routine?"}
+{"prompt": "Name two professional development skills that are important for managers to have."}
+{"prompt": "Make an upvote/downvote system for a comment board"}
+{"prompt": "Explain why consistency is important in a relationship"}
+{"prompt": "List the even numbers between 80 and 88."}
+{"prompt": "Tell me about Copacabana Beach."}
+{"prompt": "Describe how cloud computing works"}
+{"prompt": "Generate 3 marketing ideas to increase engagement on a product's social media account."}
+{"prompt": "Describe the flavor of a butterscotch sundae in 5 words."}
+{"prompt": "Explain the nuances of magnetism."}
+{"prompt": "Describe the most unique experience you have ever had."}
+{"prompt": "Write a definition for the phrase \"design thinking\"."}
+{"prompt": "Discuss two ways this economic system is different from capitalism"}
+{"prompt": "Find the highest peak in the world."}
+{"prompt": "Write a classification model to classify movie reviews as negative, neutral or positive."}
+{"prompt": "Identify 3 interesting facts about the Taj Mahal."}
+{"prompt": "Brainstorm a list of potential interview questions for a C-level executive"}
+{"prompt": "Write a description of the elements of a rainy day."}
+{"prompt": "Brainstorm ways that technology has impacted our daily lives."}
+{"prompt": "Write a regex for an email address."}
+{"prompt": "Describe the differences between e-commerce and conventional business."}
+{"prompt": "What are three characteristics of democracy?"}
+{"prompt": "Provide an example of how chatbots can be used in the hospitality industry."}
+{"prompt": "Find the equation of the line that passes through planes with equations x+y+z=5 and y+z=1"}
+{"prompt": "Generate a script of a drama film"}
+{"prompt": "Create a query that retrieves all posts with the word \"AI\" in their title."}
+{"prompt": "Estimate the upcoming stock price of Apple in 2 months"}
+{"prompt": "Develop a pitch for a new technology product that can measure access to healthcare."}
+{"prompt": "Create a dialogue for two friends discussing their recent trip."}
+{"prompt": "Describe the importance of cultural diversity"}
+{"prompt": "Differentiat between a leader and a manager"}
+{"prompt": "Make a list of 5 assumptions of the normal distribution"}
+{"prompt": "Create an example of parallel structure related to wellness."}
+{"prompt": "Generate a sentence which uses the following phrase: \"at the end of the day\"."}
+{"prompt": "Discuss the environmental and health impacts of deforestation."}
+{"prompt": "Explain the trade-offs of a decision-tree algorithm"}
+{"prompt": "Come up with an educational activity for a 5-year-old."}
+{"prompt": "Discuss the effects of increased carbon dioxide on the global climate."}
+{"prompt": "Provide a list of 20 synonyms for happy."}
+{"prompt": "Build a shopping list of ingredients for a vegan GF brownie recipe."}
+{"prompt": "Come up with an original name for a bakery."}
+{"prompt": "Give an example of a real-world application for Machine Learning."}
+{"prompt": "Name one type of physical exercise"}
+{"prompt": "Name three ways to increase employee engagement"}
+{"prompt": "Write a paragraph summarizing a recent development in the field of Artificial Intelligence."}
+{"prompt": "Classify a given type of sports: basketball."}
+{"prompt": "Pretend to be a car mechanic and explain in one sentence what \"change the oil\" means."}
+{"prompt": "Explain why it is important to establish trust with customers."}
+{"prompt": "Describe the socio-cultural effects of the internet"}
+{"prompt": "Write a limerick about a snowman from a child's perspective"}
+{"prompt": "Describe the structure of a three paragraph essay."}
+{"prompt": "Construct a flow chart to explain the process of using a pen"}
+{"prompt": "Create a sentence that properly combines the adverbs drastically and gradually."}
+{"prompt": "Compare and contrast learning through reading versus learning through experience."}
+{"prompt": "Describe a function of the immune system."}
+{"prompt": "Create a problem statement for an online course about public speaking."}
+{"prompt": "Based on the presentation, summarize the main points."}
+{"prompt": "Write an original story involving two frogs, a cat, and a bear."}
+{"prompt": "What is the product of 6 and 2?"}
+{"prompt": "Explain why democracy is more suitable for running a country than a dictatorship."}
+{"prompt": "Code a basic 'Hello World' program in Ruby."}
+{"prompt": "Design a web page with two columns and a footer."}
+{"prompt": "What form of art has been most widely adopted by modern society?"}
+{"prompt": "Explain the importance of using a dictionary."}
+{"prompt": "Write a haiku poem that reflects the beauty of nature."}
+{"prompt": "Give a detailed description of the differences between Marxism and Capitalism."}
+{"prompt": "Make a list of 3 ways to exercise with no equipment."}
+{"prompt": "List three strategies to reduce carbon emissions."}
+{"prompt": "Explain what kind of output a recommendation system can provide."}
+{"prompt": "Write a paragraph updatating the reader about the recent events surrounding [Apple Inc]."}
+{"prompt": "What is a common impact of climate change?"}
+{"prompt": "Generate a list of countries in the continent of Africa"}
+{"prompt": "What should I do if my computer freezes?"}
+{"prompt": "Determine which of the following sentences is correct: \"It is more funner\" or \"It is more fun\"?"}
+{"prompt": "Compare and contrast the differences between a coral reef and a tropical rainforest."}
+{"prompt": "Create a script for sales calls."}
+{"prompt": "Name two measures that a person can take in order to reduce global warming."}
+{"prompt": "Explain how Coronavirus affects people's respiratory system."}
+{"prompt": "Share the scientific definition of the term “gravity”."}
+{"prompt": "Explain the purpose of the Linux operating system."}
+{"prompt": "Compare and contrast the use of television advertising in the 2006 and 2008 election cycles"}
+{"prompt": "Generate a description of a cat walking in a courtyard."}
+{"prompt": "Describe the career of a data scientist."}
+{"prompt": "What season is it in the southern hemisphere?"}
+{"prompt": "Write a 50 word story about a person visiting an amusement park."}
+{"prompt": "Write a story using the following elements: a thought-provoking question, an exotic location, a helpful character"}
+{"prompt": "Suggest five appropriate vocabulary items that can be used to describe water."}
+{"prompt": "Identify the components of an email address."}
+{"prompt": "Give an example of a sentence that uses a metaphor."}
+{"prompt": "Come up with a recipe for a healthy salad."}
+{"prompt": "Describe the causes of climate change in 50 words."}
+{"prompt": "Compare and contrast songwriting with spoken word poetry."}
+{"prompt": "Write a recipe for lemon cake."}
+{"prompt": "What should viewers be aware of when following a fitness plan?"}
+{"prompt": "Name three Asian cities with iconic skylines."}
+{"prompt": "Find an interesting article about artificial intelligence."}
+{"prompt": "Write a Python function that takes two integers and returns their least common multiple."}
+{"prompt": "Create a short story about a student who is struggling with Chemistry"}
+{"prompt": "How can I get rid of dust mites in my house?"}
+{"prompt": "Write a procedural text on how to make a peanut butter and jelly sandwich."}
+{"prompt": "Identify five tips to improve computer security."}
+{"prompt": "Describe the experience of exploring a cave."}
+{"prompt": "Provide 3 tips for living a healthy lifestyle."}
+{"prompt": "Generate a report about the top 5 performing stocks for the past 5 years."}
+{"prompt": "Summarize the impact of technology on the entertainment industry."}
+{"prompt": "Write a blog post about abstract art."}
+{"prompt": "Find the area of a triangle with side lengths of 5, 10, and 12."}
+{"prompt": "Write a persuasive paragraph to convince people to avoid single-use plastics."}
+{"prompt": "Calculate the area of a square with length 10m. Output a floating point number."}
+{"prompt": "Generate a sentence that hints at a mischievous activity."}
+{"prompt": "Explain why the Stock Market crashed in 1929."}
+{"prompt": "Describe a way to use AI to improve customer service."}
+{"prompt": "Answer the following question: What is the most important factor in influencing people's behavior?"}
+{"prompt": "Convert 1 tablespoon to milliliters."}
+{"prompt": "Write a short story about a person living in a world where the laws of physics no longer apply."}
+{"prompt": "Create a recipe for cherry cheesecake."}
+{"prompt": "How is zero Kelvin related to absolute zero?"}
+{"prompt": "Edit the following sentence:  “I don’t want any mistake”."}
+{"prompt": "Find the synonyms to the word \"hasty\"."}
+{"prompt": "Generate a list of clothes to buy for a three-year-old boy."}
+{"prompt": "Recognize the homophones of the following word: car"}
+{"prompt": "Find an example of an organization working to provide aid to refugees."}
+{"prompt": "Create a program to predict whether an email is spam given its text."}
+{"prompt": "What is a major advantage of using a mobile app?"}
+{"prompt": "Create a list of four reasons why renewable energy is important for the environment."}
+{"prompt": "Generate a list of five characteristics of an ideal leader."}
+{"prompt": "Design a 10-day workout plan to achieve maximum results."}
+{"prompt": "Write a question that asks for personal information."}
+{"prompt": "Make this sentence possessive: \"The girl's bike\"."}
+{"prompt": "Write a short story that combines two of the following elements: a sandwich, a car, and the moon."}
+{"prompt": "Give instructions on how to build a website."}
+{"prompt": "Make a list of techniques for supporting diversity in the workplace."}
+{"prompt": "Create a 10-digit password using numbers, letters, and symbols"}
+{"prompt": "Create a program that generates a random greeting when invoked."}
+{"prompt": "Provide a sentence displaying the definition of 'creative writing'."}
+{"prompt": "Rewrite the following sentence to use different words while keeping the same meaning:\n\n\"He walked across the street.\""}
+{"prompt": "Write an algorithm to implement a binary search tree."}
+{"prompt": "Cut the following sentence in half to make two grammatically correct sentences.\n\"I am going to the store, but I don't know what I need to buy.\""}
+{"prompt": "Generate a story, set on a deserted island,"}
+{"prompt": "Change this sentence from active to passive voice - Jack bought a new car."}
+{"prompt": "Tell me why someone should learn Spanish?"}
+{"prompt": "Create a metagram poem using the following words: cat, book, fly."}
+{"prompt": "Name two government policies that could be effective in reducing pollution."}
+{"prompt": "Develop an AI model to classify different types of cars."}
+{"prompt": "Analyze the following quote: \"The only way to do great work is to love what you do\"."}
+{"prompt": "Paraphrase this sentence: \"The house was incredibly clean.\""}
+{"prompt": "What purpose does a database serve?"}
+{"prompt": "Compose an email to your supervisor to explain why you were late for work."}
+{"prompt": "Name the tool used for debugging?"}
+{"prompt": "Say something encouraging to someone who failed an exam."}
+{"prompt": "Name 4 techniques used for natural language processing."}
+{"prompt": "When did the Second World War end?"}
+{"prompt": "Describe a new technology that could revolutionize transportation."}
+{"prompt": "Identify the potential harms of artificial intelligence."}
+{"prompt": "Explain how GPT works in one sentence."}
+{"prompt": "Write three sentences in present continuous tense."}
+{"prompt": "Explain the concept of abstract art."}
+{"prompt": "Generate a few lyrics for a rap about getting up early in the morning."}
+{"prompt": "Describe the structure of DNA molecules."}
+{"prompt": "Write a short motivational message for students preparing for an exam"}
+{"prompt": "Summarize the Oxford English Dictionary."}
+{"prompt": "Imagine you are a superhero and tell me about your superpower."}
+{"prompt": "Generate a tweet about women's rights."}
+{"prompt": "Name five social media platforms."}
+{"prompt": "Describe the current state of the US presidential election in a sentence."}
+{"prompt": "Compile a list of strategies for staying organized while working from home."}
+{"prompt": "Generate three tips for understanding a difficult math concept."}
+{"prompt": "Explain the significance of the Berlin Wall."}
+{"prompt": "Offer five different tips for staying organized."}
+{"prompt": "I need you to write an argumentative essay on the topic \"The Effect of Social Media on Teenagers\""}
+{"prompt": "Offer three tips for getting a good night's sleep."}
+{"prompt": "Explain why customer service reps need to stay calm and collected during a conversation."}
+{"prompt": "Name three famous people who were born on October 31st."}
+{"prompt": "Describe the process for getting a loan for a home purchase."}
+{"prompt": "Explain the concept of 'Divide and Conquer'."}
+{"prompt": "Generate some facts about the capital of America."}
+{"prompt": "Explain how an artificial neuron works."}
+{"prompt": "Name a Bluetooth enabled device."}
+{"prompt": "Compute the total cost of 10 items, each with a price of $4."}
+{"prompt": "Brainstorm new uses for a paperclip"}
+{"prompt": "Suggest some activities for an outdoor picnic"}
+{"prompt": "Classify the following sentence: \"The sun is shining brightly.\""}
+{"prompt": "Outline the main features of a perceptron."}
+{"prompt": "How many instruments does a symphony orchestra typically have?"}
+{"prompt": "Outline the steps to achieve career success"}
+{"prompt": "List three main components of a modern car engine."}
+{"prompt": "Write a story that has a moral lesson."}
+{"prompt": "Select a reasonable example to show the output of a simple linear regression model."}
+{"prompt": "Classify this movie as comedy, horror, or action: \"The Shining\""}
+{"prompt": "Launch a web browser and open the following website: www.example.com"}
+{"prompt": "Describe the Harry Potter universe."}
+{"prompt": "Why is it important for companies to consider customer feedback?"}
+{"prompt": "Find information about the 4th President of the United States."}
+{"prompt": "Write a note of appreciation for your professor"}
+{"prompt": "Generate an algorithm to check if a given string is a palindrome."}
+{"prompt": "Suggest a party theme for a 15-year-old girl's birthday party."}
+{"prompt": "Provide a convincing argument for investing in stocks."}
+{"prompt": "Name a retail business that leverages machine learning"}
+{"prompt": "Compose a poem that conveys the joy of outdoor activities."}
+{"prompt": "Identify the main verb in the sentence “She is walking to the store.”"}
+{"prompt": "Write a functional Javascript code to print the string \"Hello World\" to the console."}
+{"prompt": "Create a regex expression that excludes words containing the letter \"x\"."}
+{"prompt": "Explain the basics of photography."}
+{"prompt": "Describe the economic benefits of providing free healthcare."}
+{"prompt": "What is the legal voting age in the US?"}
+{"prompt": "Create a list of allergens commonly found in food."}
+{"prompt": "What is the average size of a baby oak tree?"}
+{"prompt": "Develop a way to extend the lifecycle of a battery."}
+{"prompt": "Create a metaphor that compares an athlete to a bird."}
+{"prompt": "Create a sentence that expresses surprise."}
+{"prompt": "Format this sentence according to Chicago Style for citations and bibliography: \"April 4, 1901 is the date of Teddy Roosevelt's first Presidential Inauguration\"."}
+{"prompt": "Write a short story related to technological advancement."}
+{"prompt": "Suggest two possible solutions to improve the education system."}
+{"prompt": "List five different types of users for a website"}
+{"prompt": "Provide a recipe for a 5-minute healthy snack."}
+{"prompt": "Compose a thesis based on the given topic: The Impact of Technology on Education."}
+{"prompt": "Identify three points of action the government should take to reduce food waste."}
+{"prompt": "Write a coding algorithm to generate a random number in a given range."}
+{"prompt": "Design an icon to represent a brand of luxury spa services."}
+{"prompt": "Summarize the novel Moby-Dick in under 80 words"}
+{"prompt": "Who won the 2020 UEFA Champions League?"}
+{"prompt": "Describe the theme of the last novel you read."}
+{"prompt": "Generate a new Spanish word from the English word 'success'"}
+{"prompt": "Describe four components of an effective presentation."}
+{"prompt": "Given the following text, list 5 facts about dolphins:\n\nDolphins are one of the most intelligent animals on Earth and have fascinated humans since ancient times."}
+{"prompt": "Describe how digital marketing can be used to improve customer engagement."}
+{"prompt": "Put together an ensemble that would be appropriate for a cocktail party."}
+{"prompt": "Provide a list of five action points that can help prevent climate change."}
+{"prompt": "Name a chemical element from the noble gas group"}
+{"prompt": "Describe the color yellow in 3 words."}
+{"prompt": "Explain how the ancient Egyptians were able to build the Great Pyramid."}
+{"prompt": "Describe the best practices for using a relational database."}
+{"prompt": "Describe a method of converting solar energy into electricity"}
+{"prompt": "Create a list of the 5 most important tasks that need to be completed in order to launch a software product."}
+{"prompt": "Generate an example of an empirically tested hypothesis for a research study"}
+{"prompt": "Generate three plausible ideas for a new product or service."}
+{"prompt": "What color is a pure red light?"}
+{"prompt": "What did the ancient Greeks think caused eclipses?"}
+{"prompt": "Create a story involving a talking mouse and an elephant."}
+{"prompt": "Suggest a suitable activity for family members to do together."}
+{"prompt": "Find 4 words in Spanish that describe a turbulent ocean."}
+{"prompt": "Given the following input, generate a synonym for \"chaos\"."}
+{"prompt": "Create a list of items that create a harmonious atmosphere in the living space."}
+{"prompt": "List 5 ways to improve working conditions in an office."}
+{"prompt": "Research the population of Singapore and present it in a chart."}
+{"prompt": "What do you think will happen if we increase the temperature?"}
+{"prompt": "Make a list of places to visit in San Francisco."}
+{"prompt": "Generate a conversation between two people discussing the movie Narcos."}
+{"prompt": "Create a publicly available dataset in CSV format suitable for Natural Language Processing."}
+{"prompt": "Please suggest a book for someone interested in learning about AI and machine learning."}
+{"prompt": "Identify three different strategies for conflict resolution."}
+{"prompt": "Identify the risk factors associated with online banking."}
+{"prompt": "Identify at least 3 characters from the book Animal Farm."}
+{"prompt": "Write a story about a person who goes on an adventure with no money."}
+{"prompt": "Explain how a farmer can conserve water."}
+{"prompt": "How does optical character recognition (OCR) work?"}
+{"prompt": "Name the different types of triangles."}
+{"prompt": "Find a palindrome starting with the letter \"H\"."}
+{"prompt": "Generate a question about the immune system"}

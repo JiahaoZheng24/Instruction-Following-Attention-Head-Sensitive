@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+prot_top16_dev3,0.6285,0.7194,0.6654,0.7554,0.6922

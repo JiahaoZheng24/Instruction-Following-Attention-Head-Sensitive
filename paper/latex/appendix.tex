@@ -1,0 +1,420 @@
+% ============================================================================
+% APPENDIX - Cleaned version
+% ============================================================================
+
+\appendix
+
+% ============================================================================
+\section{Additional Experimental Details}
+\label{app:exp-details}
+
+\subsection{Model and Quantization Configuration}
+\label{app:model-config}
+
+We use Qwen2.5-7B-Instruct with the following specifications:
+\begin{itemize}
+    \item Architecture: 28 layers, 28 attention heads per layer (784 heads total)
+    \item Hidden dimension: 4096, head dimension: 128
+    \item Quantization: GPTQ 4-bit with group size 128
+    \item Calibration: 128 samples from C4 dataset
+\end{itemize}
+
+\paragraph{Decoding Parameters.}
+All experiments use greedy decoding with fixed parameters to ensure controlled 
+comparison:
+\begin{itemize}
+    \item Temperature: 1.0 (greedy)
+    \item Top-p/Top-k: disabled
+    \item Max generation length: 512 tokens
+    \item Repetition penalty: 1.0 (disabled)
+\end{itemize}
+
+\subsection{Sample Selection Procedure}
+\label{app:sample-selection}
+
+\paragraph{IFEval Benchmark Execution.}
+We evaluate both the full-precision (FP16) and GPTQ-4bit quantized models on 
+the complete IFEval benchmark using lm-evaluation-harness \cite{eval-harness}. 
+This produces per-sample results containing:
+\begin{itemize}
+    \item Original prompt with explicit instruction constraints
+    \item Model-generated response
+    \item Constraint-level compliance scores (strict and loose)
+    \item Violated constraint types (e.g., language, format, punctuation)
+\end{itemize}
+
+\paragraph{Quantization Method Selection.}
+Table~\ref{tab:quant-comparison} compares instruction-following 
+performance across quantization levels. The 2-bit model produces 
+structurally degenerate outputs unsuitable for analysis. The 8-bit 
+model slightly outperforms FP16, likely due to regularization effects, 
+leaving minimal failure cases for study. We select 4-bit quantization 
+as it exhibits measurable but not catastrophic degradation, providing 
+a practical regime where instruction-following failures emerge without 
+complete model collapse.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Quantization} & \textbf{IFEval Avg-4} & \textbf{$\Delta$ from FP16} \\
+\midrule
+2-bit GPTQ & 0.1353 & $-0.6398$ \\
+4-bit GPTQ & 0.7566 & $-0.0185$ \\
+8-bit GPTQ & 0.7821 & $+0.0070$ \\
+FP16 (baseline) & 0.7751 & $0.0000$ \\
+\bottomrule
+\end{tabular}
+\caption{Instruction-following performance across quantization 
+levels on IFEval benchmark. 4-bit quantization provides a balanced 
+regime with measurable degradation suitable for mechanistic analysis.}
+\label{tab:quant-comparison}
+\end{table}
+
+\paragraph{Failure Case Identification.}
+From the complete benchmark results, we identify failure cases where:
+\begin{enumerate}
+    \item FP16 model satisfies all verifiable constraints (pass)
+    \item GPTQ-4bit model violates at least one constraint (fail)
+    \item Prompt length is between 30-1200 characters
+    \item Instructions contain explicit verifiable constraints (language, format, 
+          casing, punctuation, structure)
+\end{enumerate}
+
+This filtering yields a candidate set of prompts where quantization demonstrably 
+degrades instruction-following capability under identical decoding conditions.
+
+\paragraph{Evaluation Protocol and Validation.}
+Given the limited pool of clear failure cases and the subtlety of instruction 
+violations, we employ a rigorous manual evaluation protocol. Each candidate 
+sample is independently assessed by three large language models (GPT-4, 
+Claude-3.5-Sonnet, Gemini-1.5-Pro) to verify constraint violations and ensure 
+inter-rater reliability. Samples are only included if all three evaluators agree 
+on: (1) FP16 satisfies all constraints, and (2) GPTQ-4bit violates at least one 
+constraint. This conservative approach ensures high-confidence failure cases but 
+further limits the available sample pool.
+
+\paragraph{Representative Sample Selection.}
+From the validated failure cases, we manually select 10 representative 
+samples to cover diverse failure modes. To ensure these samples capture 
+the broader failure distribution, we analyze all candidate failure cases 
+and categorize them by violation type. Our selected samples proportionally 
+represent the major failure categories observed in the full candidate set:
+
+\begin{itemize}
+    \item \textbf{Language switching} (3 samples, $\sim$30\%): Model 
+          responds in unintended language (e.g., German, French) despite 
+          explicit English instruction. This is the most common failure 
+          mode in the candidate set.
+    \item \textbf{Format violations} (4 samples, $\sim$40\%): Missing 
+          bullet points, paragraph breaks, or structural requirements. 
+          Represents the largest category of quantization-induced errors.
+    \item \textbf{Constraint omission} (2 samples, $\sim$20\%): Failure 
+          to follow specific lexical constraints (forbidden words, casing).
+    \item \textbf{Degenerative repetition} (1 sample, $\sim$10\%): 
+          Repeated token sequences preventing coherent output.
+\end{itemize}
+
+This distribution mirrors the failure pattern observed across the complete 
+candidate set, ensuring our detailed analysis on 10 samples reflects the 
+typical quantization-induced degradation modes rather than edge cases. The 
+selected samples (IFEval IDs: 12, 13, 57, 74, 79, 97, 102, 206, 1075, 1137) 
+enable controlled evaluation where each sample has verified ground truth 
+(FP16 passes, GPTQ fails), and $\Delta\mathbf{O}^{(\ell,h)}$ can be 
+computed exactly by comparing the two models on the same prompt.
+
+\subsection{Hyperparameter Selection}
+\label{app:hyperparameters}
+
+\paragraph{Number of Critical Heads ($k$).}
+We set $k=15$ based on the distribution of $|\Delta a^{(\ell,h)}|$ values. 
+Approximately 15 heads (< 2\% of 784 total) exhibit deviations exceeding 
+0.005, forming a natural threshold separating severely degraded heads from 
+the majority showing minimal changes.
+
+\paragraph{Stimulation Strength ($\alpha$).}
+We evaluate three settings:
+\begin{itemize}
+    \item $\alpha = 0.0$: Baseline (no intervention)
+    \item $\alpha = 5.0$: Moderate stimulation (selected via grid search over 
+          $\{1, 3, 5, 7, 10\}$ on 5 held-out failure cases)
+    \item $\alpha = 10.0$: Excessive stimulation (to demonstrate over-intervention 
+          effects)
+\end{itemize}
+
+% ============================================================================
+\section{Implementation Details}
+\label{app:implementation}
+
+\subsection{Instruction Token Identification}
+\label{app:instruction-tokens}
+
+We identify instruction-bearing tokens using regex-based keyword matching on 
+the raw prompt text. Example patterns include: \texttt{"two words"}, 
+\texttt{"start with"}, \texttt{"json"}, \texttt{"format"}, 
+\texttt{"only output.*"}, \texttt{"lowercase"}, etc.
+
+For each matched character span in the text, we map positions to token indices 
+using the tokenizer's offset mapping facility, which returns character-level 
+boundaries for each token. This yields a set $\mathcal{I}(x) \subset \{1,\ldots,T\}$ 
+representing instruction-bearing token positions.
+
+\subsection{Attention Weight Extraction}
+\label{app:attention-extraction}
+
+To extract full attention matrices with \texttt{output\_attentions=True}, we 
+disable Flash Attention and SDPA optimizations, forcing the model to use eager 
+attention implementation. This ensures complete 
+$[\text{batch}, \text{heads}, T, T]$ attention tensors are returned for each 
+layer, where $T$ is the sequence length.
+
+\subsection{Computing Instruction Attention Score}
+\label{app:compute-attention}
+
+Given attention matrix $\mathbf{A}^{(\ell,h)} \in \mathbb{R}^{T \times T}$ 
+and instruction token indices $\mathcal{I}(x)$, we compute:
+
+\begin{equation}
+a^{(\ell,h)}(x) = \frac{1}{T \cdot |\mathcal{I}(x)|} 
+\sum_{t=1}^{T} \sum_{i \in \mathcal{I}(x)} \mathbf{A}^{(\ell,h)}_{t,i}
+\end{equation}
+
+This represents the average attention weight from all query positions to 
+instruction tokens. We aggregate across failure cases:
+
+\begin{equation}
+\Delta a^{(\ell,h)} = \frac{1}{|F|} \sum_{x \in F} 
+\left( a^{(\ell,h)}_{\text{FP}}(x) - a^{(\ell,h)}_{\text{Q}}(x) \right)
+\end{equation}
+
+Heads are ranked by $|\Delta a^{(\ell,h)}|$ and the top-$k$ form $H^{\star}$.
+
+\subsection{Output Vector Compensation}
+\label{app:output-compensation}
+
+\paragraph{Per-Sample Correction.}
+For each diagnostic prompt $x \in F$, we cache the output difference:
+
+\begin{equation}
+\Delta\mathbf{O}^{(\ell,h)}(x) = 
+\mathbf{O}^{(\ell,h)}_{\text{FP}}(x) - \mathbf{O}^{(\ell,h)}_{\text{Q}}(x)
+\in \mathbb{R}^{T_x \times d_h}
+\end{equation}
+
+where $T_x$ is the sequence length of prompt $x$ and $d_h=128$ is the head 
+dimension.
+
+\paragraph{Inference-Time Application.}
+We evaluate on the \textit{same} prompts used for diagnosis, ensuring exact 
+sequence length matching and isolating the effect of attention-level intervention:
+
+\begin{equation}
+\tilde{\mathbf{O}}^{(\ell,h)}(x) = 
+\mathbf{O}^{(\ell,h)}_{\text{Q}}(x) + \alpha \cdot \Delta\mathbf{O}^{(\ell,h)}(x)
+\end{equation}
+
+This is implemented via PyTorch forward hooks registered on attention head 
+modules. During the forward pass, when the quantized model computes 
+$\mathbf{O}^{(\ell,h)}_{\text{Q}}(x)$, the hook automatically applies the 
+correction before passing the output to subsequent layers. Model weights remain 
+unchanged throughout.
+
+\paragraph{Generalization to New Prompts.}
+The current implementation requires test prompts to match diagnostic prompts 
+for exact sequence length correspondence. For arbitrary prompts, one could 
+compute position-averaged corrections:
+
+\begin{equation}
+\bar{\Delta\mathbf{O}}^{(\ell,h)} = 
+\frac{1}{|F|} \sum_{x \in F} \frac{1}{T_x} \sum_{t=1}^{T_x} 
+\Delta\mathbf{O}^{(\ell,h)}(x)[t, :] \in \mathbb{R}^{d_h}
+\end{equation}
+
+which can broadcast to any sequence length. We leave this extension to future work.
+
+% ============================================================================
+\section{Additional Results}
+\label{app:additional-results}
+
+\subsection{Complete Qualitative Comparison}
+\label{app:qualitative-table}
+
+Table~\ref{tab:qualitative-full} presents complete outputs for all 10 evaluation 
+samples under three stimulation conditions.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{@{}cp{4cm}p{4cm}p{4cm}@{}}
+\toprule
+\textbf{ID} & \textbf{GPTQ ($\alpha=0$)} & \textbf{DAS ($\alpha=5$)} & \textbf{DAS ($\alpha=10$)} \\
+\midrule
+12  & Degenerative repetition & Correct format \& content & Severe repetition \\
+13  & Missing paragraph breaks & Correct structure & Collapsed output \\
+57  & Wrong casing \& format & Correct (lowercase + bullets) & Unstable symbols \\
+74  & Violates rhyme \& format & Correct limerick & Partial corruption \\
+79  & Constraint omission & Fully recovered & Meta commentary \\
+97  & \textbf{German output} & \textbf{Correct English} & Off-task generation \\
+102 & Missing bullet structure & Correct bullets & Format instability \\
+206 & Correct (passed) & Correct (maintained) & Degraded (failed) \\
+1075 & Non-JSON format & Valid JSON output & JSON + extra text \\
+1137 & French output & Correct structure & Language mixing \\
+\bottomrule
+\end{tabular}
+\caption{Complete qualitative comparison across all 10 evaluation samples. 
+Moderate stimulation ($\alpha=5$) recovers 7/8 baseline failures while 
+maintaining 2/2 baseline passes. Excessive stimulation ($\alpha=10$) degrades 
+all outputs, demonstrating the non-monotonic response to intervention strength.}
+\label{tab:qualitative-full}
+\end{table*}
+
+\subsection{Top Degraded Attention Heads}
+\label{app:per-head-stats}
+
+Table~\ref{tab:top-degraded-heads} lists the 15 most affected heads identified 
+by DAS diagnostic procedure:
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}cccc@{}}
+\toprule
+\textbf{Layer} & \textbf{Head} & \textbf{$\Delta a^{(\ell,h)}$} & \textbf{Type} \\
+\midrule
+21 & 5  & $-0.0121$ & Decrease \\
+21 & 0  & $-0.0063$ & Decrease \\
+19 & 1  & $-0.0057$ & Decrease \\
+14 & 11 & $+0.0052$ & Increase \\
+13 & 4  & $-0.0049$ & Decrease \\
+23 & 8  & $+0.0047$ & Increase \\
+22 & 15 & $-0.0045$ & Decrease \\
+20 & 3  & $+0.0044$ & Increase \\
+18 & 7  & $-0.0042$ & Decrease \\
+24 & 12 & $+0.0041$ & Increase \\
+25 & 2  & $-0.0039$ & Decrease \\
+21 & 19 & $+0.0038$ & Increase \\
+27 & 6  & $-0.0037$ & Decrease \\
+26 & 10 & $+0.0036$ & Increase \\
+19 & 14 & $-0.0035$ & Decrease \\
+\bottomrule
+\end{tabular}
+\caption{Top 15 attention heads ranked by $|\Delta a^{(\ell,h)}|$. Negative 
+values indicate reduced attention to instruction tokens after quantization; 
+positive values indicate increased attention. Degraded heads concentrate in 
+layers 19-27, consistent with prior work showing upper layers encode high-level 
+semantic constraints.}
+\label{tab:top-degraded-heads}
+\end{table}
+
+\subsection{Attention Deviation Statistics}
+\label{app:attention-distribution}
+
+Across all 784 attention heads, the distribution of instruction attention 
+deviations is approximately symmetric:
+\begin{itemize}
+    \item 348 heads (44.4\%) show positive $\Delta a^{(\ell,h)}$ (increased 
+          attention to instruction tokens)
+    \item 433 heads (55.2\%) show negative $\Delta a^{(\ell,h)}$ (decreased 
+          attention to instruction tokens)
+    \item Only 15 heads (1.9\%) exhibit $|\Delta a^{(\ell,h)}| > 0.005$
+    \item Mean absolute deviation: 0.00118
+    \item Standard deviation: 0.00201
+\end{itemize}
+
+This symmetric distribution with a small subset of severe outliers supports 
+our hypothesis that quantization disrupts a sparse set of critical heads rather 
+than causing uniform degradation across the model. The localized nature of 
+degradation enables targeted repair through selective head compensation.
+
+% ============================================================================
+\section{Computational Resources}
+\label{app:compute}
+
+All experiments were conducted on the University of Notre Dame Center for 
+Research Computing (CRC) infrastructure:
+
+\paragraph{Hardware.}
+\begin{itemize}
+    \item GPU: 1$\times$ NVIDIA A10 (24GB GDDR6)
+    \item CPU: 32-core Intel Xeon
+    \item RAM: 256GB DDR4
+\end{itemize}
+
+\paragraph{Runtime.}
+\begin{itemize}
+    \item IFEval benchmark evaluation (2 models): $\sim$2 hours
+    \item Diagnostic phase (attention extraction, 10 prompts): $\sim$15 minutes
+    \item Inference with DAS (10 prompts $\times$ 3 $\alpha$ values): $\sim$5 minutes
+    \item Total experimental time: < 3 hours
+\end{itemize}
+
+\paragraph{Software Environment.}
+\begin{itemize}
+    \item PyTorch 2.1.0 with CUDA 11.8
+    \item Transformers 4.41.0
+    \item Auto-GPTQ 0.7.1
+    \item lm-evaluation-harness 0.4.2
+    \item Python 3.10
+\end{itemize}
+
+% ============================================================================
+\section{Limitations and Future Directions}
+\label{app:limitations}
+
+\subsection{Current Limitations}
+
+\paragraph{Prompt-Specific Correction.}
+Our implementation caches $\Delta\mathbf{O}^{(\ell,h)}(x)$ separately for each 
+diagnostic prompt, requiring test prompts to match the diagnostic set for 
+sequence length compatibility. This controlled setup enables clean before-after 
+comparison but limits direct generalization to arbitrary new prompts without 
+additional modifications (e.g., position-averaging).
+
+\paragraph{Manual Hyperparameter Selection.}
+The stimulation strength $\alpha=5$ is selected via grid search on held-out 
+samples and may not transfer optimally across different models, quantization 
+methods, or failure types. Developing adaptive or principled selection strategies 
+remains an open problem.
+
+\paragraph{Single Model and Quantization Method.}
+Our analysis focuses on Qwen2.5-7B with GPTQ-4bit quantization. Whether similar 
+localized disruption patterns occur in other model families (LLaMA, Mistral, 
+Gemma) or quantization methods (AWQ, SmoothQuant, mixed-precision) requires 
+systematic investigation.
+
+\paragraph{Instruction-Following Only.}
+We focus exclusively on instruction-following capability. Whether DAS can 
+recover other quantization-degraded capabilities (mathematical reasoning, 
+factual consistency, safety alignment) through attention-level intervention 
+is unexplored.
+
+\paragraph{Evaluation Scale.}
+Our detailed analysis examines 10 representative samples to enable thorough 
+qualitative assessment. While this reveals clear recovery patterns, large-scale 
+evaluation across the full benchmark would strengthen generalizability claims.
+
+\subsection{Future Directions}
+
+\paragraph{Position-Agnostic Correction.}
+Developing position-averaged or token-type-specific corrections would enable 
+application to arbitrary prompts while maintaining the training-free property.
+
+\paragraph{Automatic Stimulation Strength Selection.}
+Investigating lightweight diagnostic signals (e.g., attention entropy, output 
+variance) to automatically determine appropriate $\alpha$ values per head or 
+per sample.
+
+\paragraph{Multi-Capability Joint Repair.}
+Extending DAS to simultaneously recover multiple capabilities by identifying 
+capability-specific attention heads and applying orthogonal corrections.
+
+\paragraph{Integration with Quantization Pipeline.}
+Incorporating instruction-following diagnostics into quantization calibration 
+(e.g., mixed-precision quantization) to preemptively protect critical heads 
+during compression.
+
+\paragraph{Theoretical Understanding.}
+Developing formal analysis of why instruction-following exhibits localized 
+degradation under quantization compared to other capabilities, potentially 
+informing more robust quantization-aware training objectives.

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+rand32_qkv_s0,0.6322,0.7254,0.6673,0.7566,0.6954

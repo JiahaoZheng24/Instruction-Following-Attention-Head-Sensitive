@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+prot_rand32_s1,0.6248,0.717,0.658,0.7482,0.687

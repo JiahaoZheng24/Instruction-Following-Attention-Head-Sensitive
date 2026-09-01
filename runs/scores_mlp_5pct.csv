@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+mlp_5pct,0.6433,0.7254,0.6876,0.7686,0.7062

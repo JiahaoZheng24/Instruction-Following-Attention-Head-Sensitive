@@ -1,0 +1,8 @@
+jobs/hf.env
+logs/
+IFH_*.o*
+IFH_*.po*
+gptq_log_*.log
+gptqmodel_offload/
+__pycache__/
+*.pyc

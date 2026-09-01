@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+qbase_llama_gptq3,0.0813,0.1619,0.0887,0.1751,0.1267

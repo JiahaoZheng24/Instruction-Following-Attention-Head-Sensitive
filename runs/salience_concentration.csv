@@ -1,0 +1,4 @@
+model,total_params_B,mass_share_top1e+04,mass_share_top1e+05,mass_share_top1e+06,mass_share_top1e+07
+qwen,6.53,0.0056,0.0126,0.0318,0.0898
+llama,6.98,0.0068,0.015,0.0336,0.0831
+mistral,6.98,0.031,0.0414,0.0656,0.1292

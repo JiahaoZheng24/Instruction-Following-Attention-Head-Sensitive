@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+zero1e5_llama,0.1386,0.2374,0.1386,0.2362,0.1877

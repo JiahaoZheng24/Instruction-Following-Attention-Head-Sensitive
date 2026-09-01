@@ -1,0 +1,2 @@
+tag,t1_prompt_strict,t1_inst_strict,t2_prompt_strict,t2_inst_strict,t3_prompt_strict,t3_inst_strict,skipped_instructions
+mif_llama_fp16,0.7217,0.7913,0.5589,0.7846,0.4085,0.7576,0
