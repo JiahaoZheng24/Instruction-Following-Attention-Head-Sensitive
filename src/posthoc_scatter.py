@@ -32,6 +32,13 @@ def main():
     ap.add_argument("--model", required=True, help="fp weight source")
     ap.add_argument("--budget-params", type=int, required=True)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--salience-dir",
+                    help="restore the CRITICAL set (global salience threshold) "
+                         "instead of a random scatter — the mechanism "
+                         "discriminator on a collapse checkpoint: if post-hoc "
+                         "restoration rescues, collapse = corrupted critical "
+                         "weights; if not, collapse = compensation damage "
+                         "propagated into the REST of the network")
     ap.add_argument("--prompts", required=True)
     ap.add_argument("--tag", required=True)
     ap.add_argument("--batch", type=int, default=16)
@@ -42,16 +49,26 @@ def main():
     total = sum(p.numel() for n, p in model.named_parameters()
                 if "layers" in n and p.dim() == 2)
     frac = args.budget_params / total
+    if args.salience_dir:
+        from critical_anatomy import threshold_for
+        thr, _ = threshold_for(args.salience_dir, args.budget_params)
     restored = 0
     with torch.no_grad():
         for name, p in model.named_parameters():
             if "layers" not in name or p.dim() != 2:
                 continue
-            g = torch.Generator().manual_seed(
-                args.seed * 100003 + hash(name) % 65521)
-            m = torch.rand(p.shape, generator=g) < frac
+            if args.salience_dir:
+                f = os.path.join(args.salience_dir,
+                                 name.replace(".weight", "") + ".pt")
+                if not os.path.exists(f):
+                    continue
+                m = torch.load(f, map_location="cpu").float() > thr
+            else:
+                g = torch.Generator().manual_seed(
+                    args.seed * 100003 + hash(name) % 65521)
+                m = torch.rand(p.shape, generator=g) < frac
             w_fp = fp.get(name).to(p.dtype)
-            p.data[m] = w_fp[m].to(p.device)
+            p.data[m.to(p.device)] = w_fp[m].to(p.device, p.dtype)
             restored += int(m.sum())
     print(f"[ph-scatter] restored {restored / 1e6:.1f}M scattered entries "
           f"({100 * restored / total:.3f}%)")

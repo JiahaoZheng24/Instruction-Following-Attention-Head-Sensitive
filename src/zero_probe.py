@@ -29,19 +29,30 @@ def main():
     ap.add_argument("--prompts", required=True)
     ap.add_argument("--tag", required=True)
     ap.add_argument("--batch", type=int, default=16)
+    ap.add_argument("--random", action="store_true",
+                    help="CONTROL: zero a random same-size set instead of the "
+                         "critical set (calibrates what 'lethal' means)")
+    ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
     model, tok = load_model(args.model)
-    thr, _ = threshold_for(args.salience_dir, args.budget_params)
+    thr, total = threshold_for(args.salience_dir, args.budget_params)
+    frac = args.budget_params / total
     zeroed = 0
     with torch.no_grad():
         for name, p in model.named_parameters():
             if "layers" not in name or p.dim() != 2:
                 continue
-            f = os.path.join(args.salience_dir, name.replace(".weight", "") + ".pt")
-            if not os.path.exists(f):
-                continue
-            m = (torch.load(f, map_location="cpu").float() > thr).to(p.device)
+            if args.random:
+                g = torch.Generator().manual_seed(
+                    args.seed * 100003 + hash(name) % 65521)
+                m = (torch.rand(p.shape, generator=g) < frac).to(p.device)
+            else:
+                f = os.path.join(args.salience_dir,
+                                 name.replace(".weight", "") + ".pt")
+                if not os.path.exists(f):
+                    continue
+                m = (torch.load(f, map_location="cpu").float() > thr).to(p.device)
             p.data[m] = 0.0
             zeroed += int(m.sum())
     print(f"[zero-probe] zeroed {zeroed/1e3:.1f}K critical weights at fp16")
