@@ -7,11 +7,13 @@
 #$ -j y
 #$ -o logs/
 #$ -N IFH_W14
-#$ -t 1-2
-# W14 micro: insurance for the two spiciest W13 findings at 14B.
+#$ -t 1-3
+# W14 micro: insurance for the three spiciest W13 findings at 14B.
 #  1: tacq@1e5 calib-seed 1  — replicate "under-budget protection HURTS"
 #     (0.216 < none 0.412; collapse-arm seed variance is +-10, so confirm)
 #  2: tacq@3e5              — locate the 14B transition (1e5 fails, 1e6 works)
+#  3: PPL+MMLU on the cs1 none checkpoint — is the "likelihood metrics miss
+#     the generation collapse" dissociation seed-robust? (currently n=1 ckpt)
 #   qsub jobs/w14_micro.sh
 
 set -e
@@ -45,6 +47,8 @@ case "$SGE_TASK_ID" in
      python src/quantize_protected.py --model "$Q14" --bits 3 --group-size 128 \
        --protect tacq --salience-dir "$SAL14" --budget-params 300000 --out "$CKPT"
      run_ifeval "$CKPT" v2q14_tacq3e5 ;;
+  3) python src/eval_general.py --model "$STORE/models/qwen2.5-14b-v2gptq3-none_cs1" \
+       --tag gen_q14_none_cs1 --scores-csv runs/general_gen_q14_none_cs1.csv ;;
   *) echo "bad task id"; exit 1 ;;
 esac
 echo "[W14] ✅ task $SGE_TASK_ID done"
