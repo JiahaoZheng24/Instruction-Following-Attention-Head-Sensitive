@@ -1,0 +1,5 @@
+model=meta-llama/Llama-3.1-8B-Instruct
+budget=100000
+zeroed=99864
+mode=fp16_zero_probe
+salience=/store01/yshi4/jzheng7/salience/llama31-8b-if

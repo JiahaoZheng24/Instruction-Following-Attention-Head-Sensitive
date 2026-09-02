@@ -1,0 +1,2 @@
+tag,t1_prompt_strict,t1_inst_strict,t2_prompt_strict,t2_inst_strict,t3_prompt_strict,t3_inst_strict,skipped_instructions
+mif_qwen_v2none,0.6326,0.7138,0.3564,0.6557,0.1529,0.5711,0

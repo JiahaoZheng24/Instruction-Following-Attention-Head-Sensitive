@@ -1,0 +1,5 @@
+quant_ckpt=/store01/yshi4/jzheng7/models/llama3.1-8b-v2gptq3-none
+budget=100000
+seed=0
+restored=99463
+mode=posthoc_scatter

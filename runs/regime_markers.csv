@@ -2,3 +2,6 @@ model,max_hidden_act,argmax_layer,n_channels_gt50,n_channels_gt100,act_kurtosis,
 Qwen/Qwen2.5-7B-Instruct,11584.0,13,43,10,15309.4,5696.0
 meta-llama/Llama-3.1-8B-Instruct,324.0,10,0,0,21091.1,478.0
 mistralai/Mistral-7B-Instruct-v0.3,212.0,19,3,1,23343.9,788.0
+Qwen/Qwen2.5-14B-Instruct,10880.0,22,115,36,4907.7,6496.0
+Qwen/Qwen2.5-32B-Instruct,19072.0,42,1632,185,5344.8,4864.0
+mistralai/Mistral-Small-24B-Instruct-2501,244.0,2,1,0,21565.7,384.0

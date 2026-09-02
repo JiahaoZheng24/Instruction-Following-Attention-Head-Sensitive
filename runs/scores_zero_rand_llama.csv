@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+zero_rand_llama,0.7153,0.7998,0.756,0.8333,0.7761
