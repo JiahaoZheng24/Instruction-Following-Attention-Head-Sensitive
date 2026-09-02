@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+cens_nemo_12b_fp16,0.573,0.6763,0.6303,0.7254,0.6513

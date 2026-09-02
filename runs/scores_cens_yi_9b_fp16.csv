@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+cens_yi_9b_fp16,0.5009,0.6271,0.5656,0.6811,0.5937

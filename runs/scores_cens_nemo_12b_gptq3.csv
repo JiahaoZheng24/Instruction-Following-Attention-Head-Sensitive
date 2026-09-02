@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+cens_nemo_12b_gptq3,0.3937,0.5108,0.4418,0.5588,0.4763

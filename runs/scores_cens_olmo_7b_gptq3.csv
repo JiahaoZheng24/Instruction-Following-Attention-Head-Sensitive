@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+cens_olmo_7b_gptq3,0.6174,0.7194,0.658,0.7554,0.6876
