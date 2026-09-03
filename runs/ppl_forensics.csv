@@ -1,0 +1,4 @@
+tag,n_tokens,ppl,median_nll,mean_nll,pct_nll_gt5,pct_nll_gt10,pct_nll_gt20,ppl_excl_worst_0.1pct,ppl_excl_worst_1pct,top1_agreement
+pplf_l32_fp16,81920,10.61,1.362,2.362,16.14,1.895,0.0012,10.47,9.56,0.5077
+pplf_l32_gptq3,81920,1255.72,7.23,7.135,72.4,22.073,0.0,1243.64,1158.01,0.1155
+pplf_llama8_gptq3,81920,55.64,2.495,4.019,30.14,12.063,0.0281,54.78,48.56,0.3952
