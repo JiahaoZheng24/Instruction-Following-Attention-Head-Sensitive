@@ -1,0 +1,7 @@
+{
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "rotation": "r1_random_orthogonal",
+  "seed": 0,
+  "quantized": false,
+  "sanity": "max|dlogit|=3.6602 top1-agreement=0.938"
+}

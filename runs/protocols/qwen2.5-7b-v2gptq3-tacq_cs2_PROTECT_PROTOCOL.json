@@ -1,0 +1,19 @@
+{
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "bits": 3,
+  "group_size": 128,
+  "sym": true,
+  "desc_act": true,
+  "calib": "c4",
+  "n_calib": 128,
+  "protect": "tacq",
+  "budget_params": 37624064,
+  "selected_params": 37430908,
+  "topk_from": null,
+  "k": 32,
+  "kv": false,
+  "projs": "all",
+  "seed": 0,
+  "calib_seed": 2,
+  "format": "fake-quant fp checkpoint (values on b-bit grid)"
+}

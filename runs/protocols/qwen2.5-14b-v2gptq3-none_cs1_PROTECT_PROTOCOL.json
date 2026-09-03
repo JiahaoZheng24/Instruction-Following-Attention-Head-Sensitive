@@ -1,0 +1,23 @@
+{
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "bits": 3,
+  "group_size": 128,
+  "sym": true,
+  "desc_act": true,
+  "quantizer": "gptq",
+  "calib": "c4",
+  "n_calib": 128,
+  "protect": "none",
+  "budget_params": 37624064,
+  "selected_params": 0,
+  "topk_from": null,
+  "k": 32,
+  "kv": false,
+  "projs": "all",
+  "seed": 0,
+  "calib_seed": 1,
+  "coords_file": null,
+  "rotate": false,
+  "rotate_seed": null,
+  "format": "fake-quant fp checkpoint (values on b-bit grid)"
+}
