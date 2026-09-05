@@ -36,7 +36,6 @@ export TOKENIZERS_PARALLELISM=false
 # killed by SGE and the card is released; every python step is also wrapped in
 # `timeout` so a hung dataloader/network call cannot outlive its budget.
 T="timeout --signal=TERM --kill-after=120 6h"
-trap 'rm -rf "$IFH_OFFLOAD_DIR"' EXIT
 
 packed () {  # $1 model $2 ckpt $3 tag $4.. flags for quantize_gptq.py
   local model="$1" ckpt="$2" tag="$3"; shift 3
