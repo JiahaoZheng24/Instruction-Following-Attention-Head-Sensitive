@@ -9,8 +9,27 @@ Protection modes (--protect):
   tacq    TaCQ-criterion scattered weights: global top weights by saliency
           (src/tacq_salience.py output) up to --budget-params
   randw   random scattered weights at --budget-params (structure control)
+  cols    whole input columns by salience density (OWQ-style storage)
+  coords  explicit (layer, proj, row, col) list (e.g. super weights)
+  hmag    W20+: GRADIENT-FREE criterion |W| * sqrt(H_ii) (activation-aware
+          magnitude, computable inside the GPTQ pass at zero extra cost),
+          per-module top fraction = budget / total. If this rescues like
+          tacq, the practical fix is "one line inside GPTQ".
 
-Calibration matches W0 protocol: c4, 128 x 2048, g128, sym, desc_act.
+Quantizers (--quantizer): gptq (default) | rtn | awq   (--rtn kept as alias)
+
+Calibration (--calib): c4 (frozen protocol) | instruct | wikitext
+Frozen protocol: c4, 128 x 2048, g128, sym, desc_act, percdamp 0.05.
+
+W20+ knobs (all default to the frozen protocol):
+  --percdamp X          continuous compensation-strength knob (W20 damping sweep)
+  --asym                asymmetric grid (config-confound arm)
+  --scale-excl-mask     protected entries excluded from group scale (artifact check)
+  --stats-dir DIR       mechanism log (stats.csv + per-module send_mass .pt)
+  --stats-chat-n N      also build a chat-format Hessian per module (H_alt) from
+                        N instruct prompts -> distribution-shift objective test
+  --stats-eig           also log the damped-Hessian condition number (slow-ish)
+  --no-save             stats-only run, do not write the checkpoint
 
 Example:
   python src/quantize_protected.py --protect tacq \
@@ -26,7 +45,7 @@ import random
 import torch
 
 from common import DEFAULT_MODEL, HeadGeom, load_model
-from gptq_core import MaskedGPTQ
+from gptq_core import MaskedGPTQ, rtn_grouped
 from quantize_gptq import load_calib
 
 ATTN = ("q_proj", "k_proj", "v_proj", "o_proj")
@@ -58,8 +77,9 @@ def head_masks(geom: HeadGeom, heads, kv: bool, projs: str):
     return out
 
 
-def build_mask_for(module, layer_idx, proj, args, ctx):
-    """Returns bool [rows, cols] mask or None."""
+def build_mask_for(module, layer_idx, proj, args, ctx, gptq=None):
+    """Returns bool [rows, cols] mask or None. `gptq` (MaskedGPTQ with an
+    accumulated Hessian) is required for the hmag mode."""
     W = module.weight
     if args.protect == "none":
         return None
@@ -91,6 +111,18 @@ def build_mask_for(module, layer_idx, proj, args, ctx):
         m = torch.zeros(W.shape, dtype=torch.bool)
         for r_, c_ in pts:
             m[r_, c_] = True
+        ctx["selected"] += int(m.sum())
+        return m
+    if args.protect == "hmag":
+        assert gptq is not None and gptq.H is not None, "hmag needs the Hessian"
+        with torch.no_grad():
+            s_x = torch.sqrt(torch.diag(gptq.H).clamp(min=0)).unsqueeze(0)
+            score = (W.detach().float().abs() * s_x).flatten()
+            k = int(round(ctx["frac"] * score.numel()))
+            m = torch.zeros(score.numel(), dtype=torch.bool, device=score.device)
+            if k > 0:
+                m[torch.topk(score, k).indices] = True
+            m = m.view(W.shape).cpu()
         ctx["selected"] += int(m.sum())
         return m
     name = f"model.layers.{layer_idx}.{'self_attn' if proj in ATTN else 'mlp'}.{proj}"
@@ -148,6 +180,15 @@ def capture_layer0_inputs(model, tok, texts, max_len):
     return inps, kwargs_list
 
 
+STATS_COLS = ["layer", "proj", "quantizer", "rows", "cols", "n_dead_cols",
+              "clip_frac", "clip_frac_rtn", "comp_disp", "comp_disp_rel",
+              "wdisp_gptq", "wdisp_rtn", "obj_gptq", "obj_rtn",
+              "obj_gptq_alt", "obj_rtn_alt", "hdiag_alt_corr",
+              "send_total", "send_top1pct", "send_top16_cols",
+              "hdiag_max_over_mean", "cond_damped",
+              "awq_alpha", "obj_awq", "obj_awq_alt", "protected"]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -158,7 +199,7 @@ def main():
     ap.add_argument("--seqlen", type=int, default=2048)
     ap.add_argument("--out", required=True)
     ap.add_argument("--protect",
-                    choices=["none", "heads", "tacq", "randw", "coords", "cols"],
+                    choices=["none", "heads", "tacq", "randw", "coords", "cols", "hmag"],
                     required=True)
     ap.add_argument("--no-actorder", action="store_true",
                     help="GPTQ without desc_act ordering (compensation-order probe)")
@@ -170,15 +211,34 @@ def main():
     ap.add_argument("--k", type=int, default=32)
     ap.add_argument("--kv", action="store_true")
     ap.add_argument("--projs", choices=["all", "qkv", "o"], default="all")
-    # tacq / randw modes
+    # tacq / randw / hmag modes
     ap.add_argument("--salience-dir")
     ap.add_argument("--budget-params", type=int, default=37_624_064)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--calib-seed", type=int, default=0,
-                    help="disjoint c4 calib replicate (for error bars)")
+                    help="disjoint calib replicate (for error bars)")
+    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext"], default="c4",
+                    help="calibration corpus (frozen protocol = c4)")
+    # quantizer family
+    ap.add_argument("--quantizer", choices=["gptq", "rtn", "awq"], default="gptq")
     ap.add_argument("--rtn", action="store_true",
-                    help="RTN instead of GPTQ: no calibration, no compensation "
-                         "(method-generality arm; same group/sym protocol)")
+                    help="alias for --quantizer rtn (no calibration, no compensation)")
+    ap.add_argument("--awq-grid", type=int, default=20,
+                    help="awq: number of alpha grid points in [0,1]")
+    # W20+ knobs
+    ap.add_argument("--percdamp", type=float, default=0.05,
+                    help="GPTQ Hessian dampening (frozen protocol 0.05; GPTQ default 0.01). "
+                         "damp -> inf turns GPTQ into RTN: the compensation-strength knob")
+    ap.add_argument("--asym", action="store_true",
+                    help="asymmetric grid with per-group zero point (frozen = sym)")
+    ap.add_argument("--scale-excl-mask", action="store_true",
+                    help="exclude protected entries from the group scale (SpQR/TaCQ semantics)")
+    ap.add_argument("--stats-dir",
+                    help="write mechanism log (stats.csv + send_mass .pt per module)")
+    ap.add_argument("--stats-chat-n", type=int, default=0,
+                    help="also accumulate a chat-format Hessian from N instruct prompts")
+    ap.add_argument("--stats-eig", action="store_true")
+    ap.add_argument("--no-save", action="store_true")
     ap.add_argument("--rotate", action="store_true",
                     help="QuaRot-style R1: fold norms + fuse a random orthogonal "
                          "rotation into the weights BEFORE quantization. With "
@@ -186,6 +246,9 @@ def main():
                          "matching tacq_salience --rotate run (same seed).")
     ap.add_argument("--rotate-seed", type=int, default=0)
     args = ap.parse_args()
+    if args.rtn:
+        args.quantizer = "rtn"
+    sym = not args.asym
 
     model, tok = load_model(args.model)
     if args.rotate:
@@ -195,6 +258,8 @@ def main():
         print(f"[v2] rotation sanity: {probe_report(ref, logit_probe(model, tok))}")
     geom = HeadGeom(model)
     ctx = {"selected": 0}
+    total_lin = sum(p.numel() for n, p in model.named_parameters()
+                    if "layers" in n and p.dim() == 2)
 
     if args.protect == "heads":
         assert args.topk_from, "--topk-from required for --protect heads"
@@ -204,16 +269,14 @@ def main():
         ctx["head_masks"] = head_masks(geom, heads, args.kv, args.projs)
     elif args.protect == "tacq":
         sample = torch.load(os.path.join(args.salience_dir, "sample.pt"))
-        total = sum(p.numel() for n, p in model.named_parameters()
-                    if "layers" in n and p.dim() == 2)
-        q = 1.0 - args.budget_params / total
+        q = 1.0 - args.budget_params / total_lin
         from common import safe_quantile
         ctx["threshold"] = safe_quantile(sample, q)
         print(f"[v2] tacq threshold={ctx['threshold']:.3e} (target q={q:.5f})")
-    elif args.protect == "randw":
-        total = sum(p.numel() for n, p in model.named_parameters()
-                    if "layers" in n and p.dim() == 2)
-        ctx["frac"] = args.budget_params / total
+    elif args.protect in ("randw", "hmag"):
+        ctx["frac"] = args.budget_params / total_lin
+        if args.protect == "hmag":
+            assert args.quantizer != "rtn", "hmag needs a calibration Hessian (gptq/awq)"
     elif args.protect == "cols":
         # whole input-channel columns, greedily by captured-salience density,
         # until the param budget is filled -> hardware-friendly (OWQ storage)
@@ -251,7 +314,12 @@ def main():
         print(f"[v2] coords mode: {sum(len(v) for v in coords.values())} weight entries")
 
     layers = model.model.layers
-    if args.rtn:
+    stats_rows = []
+    if args.stats_dir:
+        os.makedirs(args.stats_dir, exist_ok=True)
+
+    # ---------------------------------------------------------------- RTN
+    if args.quantizer == "rtn":
         with torch.no_grad():
             for li in range(len(layers)):
                 layer = layers[li]
@@ -260,21 +328,30 @@ def main():
                 for p, m in mods.items():
                     mask = build_mask_for(m, li, p, args, ctx)
                     rtn_quantize_(m.weight.data, args.bits, args.group_size,
-                                  mask.to(m.weight.device) if mask is not None else None)
+                                  mask.to(m.weight.device) if mask is not None else None,
+                                  sym=sym, scale_excl_mask=args.scale_excl_mask)
                 print(f"[v2-rtn] layer {li + 1}/{len(layers)} "
                       f"(protected so far: {ctx['selected'] / 1e6:.1f}M)", flush=True)
-        save_ckpt(model, tok, args, ctx)
+        if not args.no_save:
+            save_ckpt(model, tok, args, ctx)
         return
 
-    calib = load_calib("c4", tok, args.n_calib, args.seqlen, seed=args.calib_seed)
-    print(f"[v2] capturing layer-0 inputs ({len(calib)} samples)")
+    # ------------------------------------------------------- GPTQ / AWQ
+    calib = load_calib(args.calib, tok, args.n_calib, args.seqlen, seed=args.calib_seed)
+    print(f"[v2] capturing layer-0 inputs ({len(calib)} {args.calib} samples)")
     inps, kws = capture_layer0_inputs(model, tok, calib, args.seqlen)
+    inps_alt, kws_alt = [], []
+    if args.stats_chat_n > 0:
+        chat = load_calib("instruct", tok, args.stats_chat_n, args.seqlen, seed=0)
+        print(f"[v2] capturing layer-0 inputs for the chat Hessian ({len(chat)} prompts)")
+        inps_alt, kws_alt = capture_layer0_inputs(model, tok, chat, args.seqlen)
+
     with torch.no_grad():
         for li in range(len(layers)):
             layer = layers[li]
             mods = {p: getattr(layer.self_attn, p) for p in ATTN}
             mods.update({p: getattr(layer.mlp, p) for p in MLP})
-            gptq = {p: MaskedGPTQ(m) for p, m in mods.items()}
+            gptq = {p: MaskedGPTQ(m, name=f"layers.{li}.{p}") for p, m in mods.items()}
             handles = [m.register_forward_pre_hook(
                 (lambda g: lambda _m, a: g.add_batch(a[0]))(gptq[p]))
                 for p, m in mods.items()]
@@ -282,37 +359,83 @@ def main():
                 layer(inps[j], **kws[j])
             for h in handles:
                 h.remove()
+            if inps_alt:
+                handles = [m.register_forward_pre_hook(
+                    (lambda g: lambda _m, a: g.add_batch_alt(a[0]))(gptq[p]))
+                    for p, m in mods.items()]
+                for j in range(len(inps_alt)):
+                    layer(inps_alt[j], **kws_alt[j])
+                for h in handles:
+                    h.remove()
             for p, g in gptq.items():
-                mask = build_mask_for(mods[p], li, p, args, ctx)
-                g.quantize(bits=args.bits, group_size=args.group_size,
-                           sym=True, actorder=not args.no_actorder, mask=mask)
+                mask = build_mask_for(mods[p], li, p, args, ctx, gptq=g)
+                st = {} if args.stats_dir else None
+                if args.quantizer == "awq":
+                    g.awq_quantize(bits=args.bits, group_size=args.group_size, sym=sym,
+                                   grid=args.awq_grid, mask=mask, stats=st)
+                else:
+                    g.quantize(bits=args.bits, group_size=args.group_size, sym=sym,
+                               actorder=not args.no_actorder, percdamp=args.percdamp,
+                               mask=mask, scale_excl_mask=args.scale_excl_mask,
+                               stats=st, stats_eig=args.stats_eig)
+                if st is not None:
+                    sm = st.pop("send_mass", None)
+                    if sm is not None:
+                        torch.save(sm, os.path.join(args.stats_dir, f"send_mass_L{li}_{p}.pt"))
+                    st.update({"layer": li, "proj": p,
+                               "protected": int(mask.sum()) if mask is not None else 0})
+                    stats_rows.append(st)
                 g.free()
             for j in range(len(inps)):
                 out = layer(inps[j], **kws[j])
                 # transformers >=4.5x returns a plain tensor; older versions a tuple
                 inps[j] = out[0] if isinstance(out, tuple) else out
+            for j in range(len(inps_alt)):
+                out = layer(inps_alt[j], **kws_alt[j])
+                inps_alt[j] = out[0] if isinstance(out, tuple) else out
             print(f"[v2] layer {li + 1}/{len(layers)} quantized "
                   f"(protected so far: {ctx['selected'] / 1e6:.1f}M)", flush=True)
 
-    save_ckpt(model, tok, args, ctx)
+    if args.stats_dir:
+        path = os.path.join(args.stats_dir, "stats.csv")
+        with open(path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=STATS_COLS, extrasaction="ignore")
+            w.writeheader()
+            for r in stats_rows:
+                w.writerow({k: r.get(k, "") for k in STATS_COLS})
+        with open(os.path.join(args.stats_dir, "STATS_PROTOCOL.json"), "w") as f:
+            json.dump(protocol(args, ctx), f, indent=2)
+        print(f"[v2] mechanism log -> {path} ({len(stats_rows)} modules)")
+    if not args.no_save:
+        save_ckpt(model, tok, args, ctx)
 
 
-def rtn_quantize_(W: torch.Tensor, bits: int, group_size: int, mask):
-    """In-place grouped sym RTN; masked entries keep fp (protocol-matched)."""
-    maxq = 2 ** bits - 1
-    zero = (maxq + 1) / 2
-    Wf = W.float()
-    for c in range(0, W.shape[1], group_size):
-        g = Wf[:, c:c + group_size]
-        xmax = g.abs().max(dim=1).values.clamp(min=1e-8)
-        scale = (2.0 * xmax / maxq).unsqueeze(1)
-        q = torch.clamp(torch.round(g / scale) + zero, 0, maxq)
-        dq = scale * (q - zero)
-        if mask is not None:
-            mm = mask[:, c:c + group_size]
-            dq[mm] = g[mm]
-        Wf[:, c:c + group_size] = dq
-    W.copy_(Wf.to(W.dtype))
+def rtn_quantize_(W: torch.Tensor, bits: int, group_size: int, mask,
+                  sym: bool = True, scale_excl_mask: bool = False):
+    """In-place grouped RTN; masked entries keep fp (protocol-matched)."""
+    Q, _ = rtn_grouped(W.float(), bits, group_size, sym, mask, scale_excl_mask)
+    W.copy_(Q.to(W.dtype))
+
+
+def protocol(args, ctx):
+    return {"model": args.model, "bits": args.bits,
+            "group_size": args.group_size, "sym": not args.asym,
+            "desc_act": args.quantizer == "gptq" and not args.no_actorder,
+            "quantizer": args.quantizer,
+            "percdamp": args.percdamp if args.quantizer == "gptq" else None,
+            "awq_grid": args.awq_grid if args.quantizer == "awq" else None,
+            "scale_excl_mask": args.scale_excl_mask,
+            "calib": None if args.quantizer == "rtn" else args.calib,
+            "n_calib": args.n_calib,
+            "protect": args.protect, "budget_params": args.budget_params,
+            "selected_params": ctx["selected"],
+            "topk_from": args.topk_from, "k": args.k,
+            "kv": args.kv, "projs": args.projs, "seed": args.seed,
+            "calib_seed": args.calib_seed, "coords_file": args.coords_file,
+            "rotate": args.rotate,
+            "rotate_seed": args.rotate_seed if args.rotate else None,
+            "stats_chat_n": args.stats_chat_n,
+            "format": "fake-quant fp checkpoint (values on b-bit grid; awq: Q'/s)"}
 
 
 def save_ckpt(model, tok, args, ctx):
@@ -320,20 +443,7 @@ def save_ckpt(model, tok, args, ctx):
     model.save_pretrained(args.out)
     tok.save_pretrained(args.out)
     with open(os.path.join(args.out, "PROTECT_PROTOCOL.json"), "w") as f:
-        json.dump({"model": args.model, "bits": args.bits,
-                   "group_size": args.group_size, "sym": True,
-                   "desc_act": not args.rtn and not args.no_actorder,
-                   "quantizer": "rtn" if args.rtn else "gptq",
-                   "calib": None if args.rtn else "c4", "n_calib": args.n_calib,
-                   "protect": args.protect, "budget_params": args.budget_params,
-                   "selected_params": ctx["selected"],
-                   "topk_from": args.topk_from, "k": args.k,
-                   "kv": args.kv, "projs": args.projs, "seed": args.seed,
-                   "calib_seed": args.calib_seed, "coords_file": args.coords_file,
-                   "rotate": args.rotate,
-                   "rotate_seed": args.rotate_seed if args.rotate else None,
-                   "format": "fake-quant fp checkpoint (values on b-bit grid)"},
-                  f, indent=2)
+        json.dump(protocol(args, ctx), f, indent=2)
     print(f"[v2] saved -> {args.out} (protected {ctx['selected'] / 1e6:.1f}M params)")
 
 

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+cens_sm_1p7b_rtn3,0.1183,0.2266,0.1386,0.2554,0.1847

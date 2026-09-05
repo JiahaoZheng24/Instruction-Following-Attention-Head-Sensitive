@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+cens_m7v02_fp16,0.4935,0.6055,0.5342,0.6415,0.5687

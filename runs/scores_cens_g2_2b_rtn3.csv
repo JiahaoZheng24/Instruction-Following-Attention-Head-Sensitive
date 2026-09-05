@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+cens_g2_2b_rtn3,0.2976,0.4353,0.3346,0.4724,0.385

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+awq3q14_asym_none,0.7079,0.7782,0.7338,0.7986,0.7546

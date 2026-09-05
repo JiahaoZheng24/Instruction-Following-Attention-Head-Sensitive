@@ -6,3 +6,4 @@ gptq_log_*.log
 gptqmodel_offload/
 __pycache__/
 *.pyc
+runs/stats/**/send_mass_*.pt

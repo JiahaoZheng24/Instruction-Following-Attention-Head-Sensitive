@@ -38,6 +38,21 @@ def load_calib(kind: str, tokenizer, n: int, seqlen: int, seed: int = 0) -> list
         return [tokenizer.apply_chat_template(
             [{"role": "user", "content": r["prompt"]}],
             tokenize=False, add_generation_prompt=True) for r in rows]
+    if kind == "wikitext":
+        # W21 calibration-corpus arm: wikitext-2-raw train, non-overlapping
+        # seqlen-token windows (GPTQ paper's alternative calibration set).
+        from datasets import load_dataset
+        ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
+        text = "\n\n".join(t for t in ds["text"] if t.strip())
+        ids = tokenizer(text, return_tensors="pt").input_ids[0]
+        start = seed * n * seqlen
+        texts = []
+        for i in range(n):
+            a = start + i * seqlen
+            if a + seqlen > ids.numel():
+                break
+            texts.append(tokenizer.decode(ids[a:a + seqlen]))
+        return texts
     # c4 (default, literature-standard)
     from datasets import load_dataset
     ds = load_dataset("allenai/c4", "en", split="train", streaming=True)
@@ -99,6 +114,11 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--smoke-only", action="store_true",
                     help="skip quantization, just smoke-test an existing checkpoint")
+    ap.add_argument("--v2", action="store_true",
+                    help="GPTAQ / GPTQv2 asymmetric calibration (gptqmodel QuantizeConfig(v2=True)): "
+                         "W30 'OBS family' arm — does the 2025 descendant collapse too?")
+    ap.add_argument("--damp-percent", type=float, default=None,
+                    help="gptqmodel damp_percent (library default if omitted; W30 packed damping arm)")
     ap.add_argument("--backend", default="TORCH",
                     help="gptqmodel BACKEND for the smoke test: TORCH (safe, default), "
                          "AUTO/TRITON (reproduces the broken 3-bit kernel), MARLIN, EXLLAMA_V2")
@@ -118,8 +138,14 @@ def main():
         extra = {}
         if os.environ.get("IFH_OFFLOAD_DIR"):
             extra["offload_to_disk_path"] = os.environ["IFH_OFFLOAD_DIR"]
+        if args.v2:
+            extra["v2"] = True
+        if args.damp_percent is not None:
+            extra["damp_percent"] = args.damp_percent
         qcfg = QuantizeConfig(bits=args.bits, group_size=args.group_size,
                               sym=True, desc_act=True, **extra)
+        print(f"[quantize] QuantizeConfig extras: {extra}  (damp_percent in effect: "
+              f"{getattr(qcfg, 'damp_percent', 'n/a')})")
         model = GPTQModel.load(args.model, qcfg)
         model.quantize(calib, batch_size=2)
         os.makedirs(args.out, exist_ok=True)
@@ -129,6 +155,7 @@ def main():
             json.dump({"model": args.model, "bits": args.bits,
                        "group_size": args.group_size, "sym": True, "desc_act": True,
                        "calib": args.calib, "n_calib": args.n_calib,
+                       "v2_gptaq": args.v2, "damp_percent": getattr(qcfg, 'damp_percent', None),
                        "library": f"gptqmodel=={getattr(_gq, '__version__', 'unknown')}"},
                       f, indent=2)
         del model

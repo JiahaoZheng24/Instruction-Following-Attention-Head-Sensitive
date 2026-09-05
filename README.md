@@ -125,3 +125,28 @@ generality.
 - GPTQ inference backend: TORCH only (see kernel-bug rule above).
 - Go/No-Go (9/7): top-k causal heads show selective IF damage vs random-k
   (else pivot to the systematic-analysis paper, plan §6).
+
+## W20-W25 (2026-09-04): mechanism / confound batch for the ICLR story
+
+Story and rationale: `paper/STORY_DIAGNOSIS_2026-09-04.md`; numbers: `paper/RESULTS.md` (v2).
+New knobs in `src/quantize_protected.py`: `--percdamp`, `--asym`, `--calib {c4,instruct,wikitext}`,
+`--quantizer {gptq,rtn,awq}`, `--scale-excl-mask`, `--protect hmag`, `--stats-dir/--stats-chat-n/--stats-eig`, `--no-save`.
+Defaults reproduce the frozen protocol bit-for-bit (sym, c4, percdamp 0.05, scale incl. mask).
+
+```
+qsub jobs/w20_damping.sh     # 8 arms: percdamp sweep, Llama + Q14 (compensation-strength knob)
+qsub jobs/w21_config.sh      # 7 arms: asym / instruct-calib / wikitext-calib / AWQ-style (sym,asym) x 2 models
+qsub jobs/w22_scalefix.sh    # 4 arms: protected weights excluded from group scale (artifact check)
+qsub jobs/w23_mechstats.sh   # 6 tasks: mechanism log (runs/stats/*) + divergence onset (runs/div_*.csv)
+qsub jobs/w24_census2.sh     # 6 models x {fp16, GPTQ3, RTN3}: census 11 -> 17
+qsub jobs/w25_gradfree.sh    # 3 arms: gradient-free |W|*sqrt(H_ii) in-loop protection
+qsub jobs/w26_induce.sh      # 8 arms: try to INDUCE collapse in Qwen-7B / Mistral-7B (damp 0.001, n_calib 8, g=-1)
+qsub jobs/w27_followup.sh    # 9 tasks, held on W20/W21/W23: PPL/MMLU/GSM8K on new arms + comp_stats
+bash jobs/submit_w20_w27.sh  # submits all of the above in order (56 array tasks)
+python src/comp_stats.py --runs llama=runs/stats/llama31-8b q7=runs/stats/qwen25-7b q14=runs/stats/qwen25-14b \
+    --summary runs/comp_stats_summary.csv --per-layer runs/comp_stats_layers.csv
+```
+
+Verification: the new core was regression-tested off-cluster (adhd_audio env, CPU): default and masked
+paths are bit-identical to the archived gptq_core; RTN identical to the old rtn_quantize_; damping 1e6
+reproduces RTN to one grid step; asym / scale-excl / AWQ / dual-Hessian / g=-1 / n_calib=8 paths run.

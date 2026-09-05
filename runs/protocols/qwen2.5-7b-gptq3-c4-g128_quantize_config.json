@@ -1,0 +1,26 @@
+{
+  "bits": 3,
+  "group_size": 128,
+  "desc_act": true,
+  "sym": true,
+  "lm_head": false,
+  "quant_method": "gptq",
+  "checkpoint_format": "gptq",
+  "pack_dtype": "int32",
+  "meta": {
+    "quantizer": [
+      "gptqmodel:5.6.12"
+    ],
+    "uri": "https://github.com/modelcloud/gptqmodel",
+    "damp_percent": 0.05,
+    "damp_auto_increment": 0.01,
+    "static_groups": false,
+    "true_sequential": true,
+    "mse": 0.0,
+    "gptaq": false,
+    "gptaq_alpha": 0.25,
+    "act_group_aware": false
+  },
+  "pack_impl": "cpu",
+  "format": "gptq"
+}

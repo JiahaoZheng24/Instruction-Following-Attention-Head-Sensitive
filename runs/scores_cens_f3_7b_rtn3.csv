@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+cens_f3_7b_rtn3,0.549,0.6367,0.5804,0.6655,0.6079

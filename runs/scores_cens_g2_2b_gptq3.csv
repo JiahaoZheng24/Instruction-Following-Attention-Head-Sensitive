@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+cens_g2_2b_gptq3,0.4325,0.5432,0.4695,0.5719,0.5043
