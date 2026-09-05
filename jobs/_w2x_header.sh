@@ -28,7 +28,7 @@ ifh_cleanup () {
   pkill -KILL -P $$ 2>/dev/null || true
   [ -n "${IFH_OFFLOAD_DIR:-}" ] && rm -rf "$IFH_OFFLOAD_DIR" 2>/dev/null || true
 }
-trap ifh_cleanup TERM INT HUP EXIT
+trap ifh_cleanup TERM INT HUP USR1 USR2 EXIT   # USR2 = SGE's pre-kill notice (needs #$ -notify)
 
 run_ifeval () {   # $1 ckpt-or-hf-id  $2 tag   ($T = optional timeout prefix set by the job)
   ${T:-} python src/diagnose_heads.py ablate --model "$1" --prompts "$FULL" --tag "$2" --batch 16

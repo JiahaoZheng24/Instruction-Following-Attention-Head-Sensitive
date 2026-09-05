@@ -5,6 +5,7 @@
 #$ -q gpu@@zzheng3_Lab
 #$ -l gpu_card=1
 #$ -l h_rt=10:00:00
+#$ -notify
 #$ -j y
 #$ -cwd
 #$ -o logs/
