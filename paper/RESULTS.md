@@ -551,6 +551,26 @@ W29 任务 16–20（Q14 damp5 GSM8K/MMLU、三个 2-bit damping 臂）因 /stor
 
 🔒🔒🔒 **第三次冻结（2026-09-05）：W1–W29，17 模型，~230 臂。此后只写不跑；rebuttal 储备：70B、TaCQ 2-bit 真混合精度复现、Q14 RTN 分歧曲线（需重建 checkpoint）、damping 阈值臂种子副本。**
 
+### 9.10d W30 裁决（2026-09-05）：prompt-only instruct 校准不是安全配方；库的 damping 上限低于治愈点
+
+**instruct（仅 prompt，~5k token）校准 vs c4 校准，GPTQ3，IFEval avg4**
+
+| 模型 | c4 | instruct | Δ | 模型 | c4 | instruct | Δ |
+|---|---|---|---|---|---|---|---|
+| **Llama-3.1-8B** | .150 | .611 | **+46** | Mistral-Nemo-12B | .476 | .374 | **−10.2** |
+| **Qwen2.5-14B** | .412 | .754 | **+34** | Llama-3.2-3B | .577 | .502 | **−7.5** |
+| SmolLM2-1.7B | .205 | .277 | +7.2 | gemma-2-2b | .504 | .450 | −5.4 |
+| Qwen2.5-3B | .411 | .473 | +6.2 | Llama-3-8B | .611 | .579 | −3.2 |
+| Llama-3.2-1B | .309 | .354 | +4.5 | Mistral-7B | .468 | .437 | −3.1 |
+| Qwen2.5-32B | .762 | .799 | +3.7 | gemma-2-9b | .725 | .694 | −3.1 |
+| OLMo-2-7B | .688 | .714 | +2.6 | Falcon3-7B | .671 | .656 | −1.5 |
+| Mistral-24B | .698 | .721 | +2.3 | Qwen2.5-7B | .672 | .660 | −1.2 |
+| | | | | Mistral-7B-v0.2 | .493 | .486 | −0.7 |
+
+- 两个崩塌的治愈稳健（+46 / +34），但在优雅/中间档上 prompt-only 校准是 +7 到 −10 的混合，**不能作为通用配方写**。混淆在于这个 instruct 集只有 128 条短 prompt（约 5k token，无回复），与 wikitext×32 的欠校准效应同源。W31 用 ultrachat 128 段带回复的 2048-token 对话做 token 匹配的 chat 校准来拆开"分布"与"数量"。
+- **配方候选转为 damping**：Q7 damp5 +3.0、Llama +49、Q14 +37，尚无一例变差；W31 在其余 14 个模型上测 ρ=5。
+- **gptqmodel 限制**：`damp_percent` 必须在 (0,1]，而 Llama 的治愈点在 ρ∈(1,2]；库允许的最大值救不了 Llama（ρ=1 → .152），能救 Q14（ρ=1 → .748）。W31 用 0.99 出 packed checkpoint 验证。安装的 gptqmodel 没有 `v2` 参数，GPTAQ 需用 `METHOD.GPTAQ`（默认 alpha 0.25，即它自己的非对称修正也被降权，本身是一种正则化）。
+
 ### 9.11 论文主张终版草案
 
 - **C1** 3-bit GPTQ 存在补偿崩塌模式，17 模型中 2 个，不可从 fp16 统计量预测，但可在量化时用 chat-Hessian 目标比检测（W29 验证）。

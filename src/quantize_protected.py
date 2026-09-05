@@ -217,7 +217,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--calib-seed", type=int, default=0,
                     help="disjoint calib replicate (for error bars)")
-    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext"], default="c4",
+    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext", "ultrachat"], default="c4",
                     help="calibration corpus (frozen protocol = c4)")
     # quantizer family
     ap.add_argument("--quantizer", choices=["gptq", "rtn", "awq"], default="gptq")

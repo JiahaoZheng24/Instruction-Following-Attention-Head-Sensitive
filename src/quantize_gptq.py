@@ -38,6 +38,30 @@ def load_calib(kind: str, tokenizer, n: int, seqlen: int, seed: int = 0) -> list
         return [tokenizer.apply_chat_template(
             [{"role": "user", "content": r["prompt"]}],
             tokenize=False, add_generation_prompt=True) for r in rows]
+    if kind == "ultrachat":
+        # W31: chat-format calibration with matched token budget. Full
+        # multi-turn conversations (user+assistant) from ultrachat_200k
+        # rendered through the model's chat template; each truncated to
+        # seqlen tokens by the caller. Distinguishes "in-distribution" from
+        # "too few tokens" (the prompt-only instruct set is ~5k tokens).
+        from datasets import load_dataset
+        ds = load_dataset("HuggingFaceH4/ultrachat_200k", split="train_sft", streaming=True)
+        texts, skip = [], seed * n
+        for ex in ds:
+            msgs = [{"role": m["role"], "content": m["content"]} for m in ex["messages"]
+                    if m["role"] in ("user", "assistant")]
+            if len(msgs) < 2 or sum(len(m["content"]) for m in msgs) < 2000:
+                continue
+            if skip > 0:
+                skip -= 1
+                continue
+            try:
+                texts.append(tokenizer.apply_chat_template(msgs, tokenize=False))
+            except Exception:  # templates that reject role orders etc.
+                continue
+            if len(texts) >= n:
+                break
+        return texts
     if kind == "wikitext":
         # W21 calibration-corpus arm: wikitext-2-raw train, non-overlapping
         # seqlen-token windows (GPTQ paper's alternative calibration set).
@@ -108,7 +132,7 @@ def main():
     ap.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct")
     ap.add_argument("--bits", type=int, required=True, choices=[2, 3, 4, 8])
     ap.add_argument("--group-size", type=int, default=128)
-    ap.add_argument("--calib", choices=["c4", "instruct"], default="c4")
+    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext", "ultrachat"], default="c4")
     ap.add_argument("--n-calib", type=int, default=128)
     ap.add_argument("--seqlen", type=int, default=2048)
     ap.add_argument("--out", required=True)
@@ -139,7 +163,12 @@ def main():
         if os.environ.get("IFH_OFFLOAD_DIR"):
             extra["offload_to_disk_path"] = os.environ["IFH_OFFLOAD_DIR"]
         if args.v2:
-            extra["v2"] = True
+            # GPTAQ / GPTQv2 in the installed gptqmodel is selected by METHOD,
+            # not by a `v2` kwarg (W30 tasks 1-2 failed on `v2=`). Default
+            # GPTAQConfig.alpha = 0.25, i.e. the asymmetric correction is
+            # itself down-weighted — note this in the paper.
+            from gptqmodel.quantization.config import METHOD
+            extra["method"] = METHOD.GPTAQ
         if args.damp_percent is not None:
             extra["damp_percent"] = args.damp_percent
         qcfg = QuantizeConfig(bits=args.bits, group_size=args.group_size,

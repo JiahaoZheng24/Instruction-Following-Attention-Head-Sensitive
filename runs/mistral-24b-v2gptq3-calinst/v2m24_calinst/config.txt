@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/mistral-24b-v2gptq3-calinst
+heads=[]
+n=0

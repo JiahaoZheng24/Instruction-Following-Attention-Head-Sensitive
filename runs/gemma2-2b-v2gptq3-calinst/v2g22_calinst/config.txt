@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/gemma2-2b-v2gptq3-calinst
+heads=[]
+n=0
