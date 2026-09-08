@@ -140,6 +140,13 @@ class MaskedGPTQ:
         self.nsamples = 0
         self.H_alt = None      # optional second Hessian (e.g. chat-format inputs)
         self.n_alt = 0
+        # W38: raw inputs at the first P (template) positions and at the next
+        # P (ordinary) positions of each chat prompt, for a position-resolved
+        # objective and for the leverage of template tokens under the
+        # calibration Hessian. Filled by add_batch_pos, consumed by _fill_stats.
+        self.X_tpl: list = []
+        self.X_ord: list = []
+        self.P = 8
 
     @torch.no_grad()
     def _accum(self, H, n_prev, inp):
@@ -161,6 +168,15 @@ class MaskedGPTQ:
         if self.H_alt is None:
             self.H_alt = torch.zeros_like(self.H)
         self.n_alt = self._accum(self.H_alt, self.n_alt, inp)
+
+    @torch.no_grad()
+    def add_batch_pos(self, inp: torch.Tensor):
+        """Store inputs at positions [0, P) (template tokens) and [P, 2P)."""
+        x = inp.reshape(-1, self.columns).float()
+        P = self.P
+        if x.shape[0] >= 2 * P:
+            self.X_tpl.append(x[:P].clone())
+            self.X_ord.append(x[P:2 * P].clone())
 
     # -------------------------------------------------------------- GPTQ
     @torch.no_grad()
@@ -264,7 +280,7 @@ class MaskedGPTQ:
         if stats is not None:
             self._fill_stats(stats, W_orig, Q, Hraw, bits, group_size, sym,
                              mask, scale_excl_mask, n_clip, n_quant,
-                             comp_disp, send_mass, cond, dead)
+                             comp_disp, send_mass, cond, dead, percdamp=percdamp)
 
         self.layer.weight.data = Q.to(self.layer.weight.dtype)
         del H, Hinv
@@ -320,7 +336,7 @@ class MaskedGPTQ:
     @torch.no_grad()
     def _fill_stats(self, stats, W_orig, Q, Hraw, bits, group_size, sym, mask,
                     scale_excl_mask, n_clip, n_quant, comp_disp, send_mass,
-                    cond, dead):
+                    cond, dead, percdamp=0.05):
         M = mask.to(self.dev) if mask is not None else None
         Q_rtn, n_clip_rtn = rtn_grouped(W_orig, bits, group_size, sym, M, scale_excl_mask)
         d_g = W_orig - Q
@@ -351,10 +367,53 @@ class MaskedGPTQ:
             stats["hdiag_alt_corr"] = float(torch.corrcoef(
                 torch.stack([torch.diag(Hraw), torch.diag(Ha)]))[0, 1])
         stats["send_mass"] = send_mass.cpu()
+        if self.X_tpl:
+            self._fill_pos_stats(stats, d_g, d_r, Hraw, percdamp)
+
+    @torch.no_grad()
+    def _fill_pos_stats(self, stats, d_g, d_r, Hraw, percdamp):
+        """Position-resolved objective (W38). obj_*_tpl = mean over stored
+        template-position inputs of ||delta x||^2; obj_*_ord the same for the
+        following P ordinary positions; tplpos_ratio = per-position
+        GPTQ/RTN ratio (comma list, positions 0..P-1); lev_* = mean
+        x^T (H_c + lambda I)^{-1} x, i.e. how unconstrained that input is
+        under the damped calibration Hessian; xnorm_* = mean ||x||."""
+        Xt = torch.cat(self.X_tpl, 0)                     # [n_prompts*P, cols]
+        Xo = torch.cat(self.X_ord, 0)
+        P = self.P
+
+        def obj(delta, X):
+            return float(((X @ delta.t()) ** 2).sum(1).mean())
+
+        stats["obj_gptq_tpl"] = obj(d_g, Xt)
+        stats["obj_rtn_tpl"] = obj(d_r, Xt)
+        stats["obj_gptq_ord"] = obj(d_g, Xo)
+        stats["obj_rtn_ord"] = obj(d_r, Xo)
+        eg = ((Xt @ d_g.t()) ** 2).sum(1).view(-1, P).mean(0)
+        er = ((Xt @ d_r.t()) ** 2).sum(1).view(-1, P).mean(0)
+        stats["tplpos_ratio"] = ",".join(f"{float(a / b.clamp(min=1e-12)):.3f}" for a, b in zip(eg, er))
+        try:
+            Hd = Hraw.clone()
+            idx = torch.arange(self.columns, device=self.dev)
+            Hd[idx, idx] += percdamp * torch.mean(torch.diag(Hraw))
+            L = torch.linalg.cholesky(Hd)
+            lt = (Xt.t() * torch.cholesky_solve(Xt.t(), L)).sum(0)
+            lo = (Xo.t() * torch.cholesky_solve(Xo.t(), L)).sum(0)
+            stats["lev_tpl"] = float(lt.mean())
+            stats["lev_ord"] = float(lo.mean())
+            stats["levpos"] = ",".join(f"{float(v):.4g}" for v in lt.view(-1, P).mean(0))
+        except Exception:  # noqa: BLE001
+            stats["lev_tpl"] = stats["lev_ord"] = float("nan")
+            stats["levpos"] = ""
+        stats["xnorm_tpl"] = float(Xt.norm(dim=1).mean())
+        stats["xnorm_ord"] = float(Xo.norm(dim=1).mean())
+        stats["xnormpos"] = ",".join(f"{float(v):.4g}" for v in Xt.norm(dim=1).view(-1, P).mean(0))
 
     def free(self):
         self.H = None
         self.H_alt = None
+        self.X_tpl = []
+        self.X_ord = []
         torch.cuda.empty_cache()
 
 

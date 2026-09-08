@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2l_fp16b01,0.5712,0.6703,0.6229,0.7218,0.6465

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2q14_damp0p5,0.732,0.8046,0.7542,0.8249,0.7789

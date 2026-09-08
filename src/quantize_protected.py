@@ -11,6 +11,10 @@ Protection modes (--protect):
   randw   random scattered weights at --budget-params (structure control)
   cols    whole input columns by salience density (OWQ-style storage)
   coords  explicit (layer, proj, row, col) list (e.g. super weights)
+  modules W34: whole modules kept in fp16 by spec, e.g.
+          --modules "0-2:q_proj,k_proj,v_proj,o_proj;4:down_proj"
+          (structured early-layer protection; CASIA-style "first layers
+          high precision" but module-resolved)
   hmag    W20+: GRADIENT-FREE criterion |W| * sqrt(H_ii) (activation-aware
           magnitude, computable inside the GPTQ pass at zero extra cost),
           per-module top fraction = budget / total. If this rescues like
@@ -18,7 +22,7 @@ Protection modes (--protect):
 
 Quantizers (--quantizer): gptq (default) | rtn | awq   (--rtn kept as alias)
 
-Calibration (--calib): c4 (frozen protocol) | instruct | wikitext
+Calibration (--calib): c4 (frozen protocol) | instruct | wikitext | ultrachat | c4chat (c4 docs wrapped in the chat template)
 Frozen protocol: c4, 128 x 2048, g128, sym, desc_act, percdamp 0.05.
 
 W20+ knobs (all default to the frozen protocol):
@@ -113,6 +117,12 @@ def build_mask_for(module, layer_idx, proj, args, ctx, gptq=None):
             m[r_, c_] = True
         ctx["selected"] += int(m.sum())
         return m
+    if args.protect == "modules":
+        if proj in ctx["module_spec"].get(layer_idx, set()):
+            m = torch.ones(W.shape, dtype=torch.bool)
+            ctx["selected"] += int(m.sum())
+            return m
+        return None
     if args.protect == "hmag":
         assert gptq is not None and gptq.H is not None, "hmag needs the Hessian"
         with torch.no_grad():
@@ -186,7 +196,10 @@ STATS_COLS = ["layer", "proj", "quantizer", "rows", "cols", "n_dead_cols",
               "obj_gptq_alt", "obj_rtn_alt", "hdiag_alt_corr",
               "send_total", "send_top1pct", "send_top16_cols",
               "hdiag_max_over_mean", "cond_damped",
-              "awq_alpha", "obj_awq", "obj_awq_alt", "protected"]
+              "awq_alpha", "obj_awq", "obj_awq_alt", "protected",
+              # W38 position-resolved objective (template positions 0..7 of chat prompts)
+              "obj_gptq_tpl", "obj_rtn_tpl", "obj_gptq_ord", "obj_rtn_ord", "tplpos_ratio",
+              "lev_tpl", "lev_ord", "levpos", "xnorm_tpl", "xnorm_ord", "xnormpos"]
 
 
 def main():
@@ -199,10 +212,22 @@ def main():
     ap.add_argument("--seqlen", type=int, default=2048)
     ap.add_argument("--out", required=True)
     ap.add_argument("--protect",
-                    choices=["none", "heads", "tacq", "randw", "coords", "cols", "hmag"],
+                    choices=["none", "heads", "tacq", "randw", "coords", "cols", "hmag", "modules"],
                     required=True)
     ap.add_argument("--no-actorder", action="store_true",
                     help="GPTQ without desc_act ordering (compensation-order probe)")
+    ap.add_argument("--rtn-modules",
+                    help='W35: quantize these modules with RTN instead of GPTQ (same spec format as --modules); '
+                         'zero extra bits — per-module quantizer selection')
+    ap.add_argument("--rtn-from-stats",
+                    help="W35: stats.csv of a previous logged run; modules whose chat-Hessian objective ratio "
+                         "obj_gptq_alt/obj_rtn_alt exceeds --rtn-threshold are quantized with RTN")
+    ap.add_argument("--rtn-threshold", type=float, default=1.0)
+    ap.add_argument("--rtn-topk", type=int, default=0, help="if >0, only the k worst modules by that ratio")
+    ap.add_argument("--rtn-invert", action="store_true",
+                    help="with --rtn-from-stats: RTN the modules NOT selected (complement set)")
+    ap.add_argument("--modules",
+                    help='modules mode spec: "L0-L1:proj,proj;L:proj" e.g. "0-2:q_proj,k_proj,v_proj,o_proj;4:down_proj"')
     ap.add_argument("--coords-file",
                     help="coords mode: CSV with layer,proj,row,col (e.g. detected "
                          "super weights); protects exactly these weight entries")
@@ -217,7 +242,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--calib-seed", type=int, default=0,
                     help="disjoint calib replicate (for error bars)")
-    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext", "ultrachat"], default="c4",
+    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext", "ultrachat", "c4chat", "c4wrongchat"], default="c4",
                     help="calibration corpus (frozen protocol = c4)")
     # quantizer family
     ap.add_argument("--quantizer", choices=["gptq", "rtn", "awq"], default="gptq")
@@ -304,6 +329,16 @@ def main():
         ctx["col_masks"] = col_masks
         print(f"[v2] cols mode: {sum(len(v) for v in col_masks.values())} columns, "
               f"{spent / 1e6:.1f}M params")
+    elif args.protect == "modules":
+        assert args.modules, "--modules required for --protect modules"
+        spec: dict[int, set] = {}
+        for part in args.modules.split(";"):
+            rng, projs = part.split(":")
+            lo, _, hi = rng.partition("-")
+            for l in range(int(lo), int(hi or lo) + 1):
+                spec.setdefault(l, set()).update(p.strip() for p in projs.split(","))
+        ctx["module_spec"] = spec
+        print(f"[v2] modules mode: {sum(len(v) for v in spec.values())} modules kept fp16: {spec}")
     elif args.protect == "coords":
         assert args.coords_file, "--coords-file required for --protect coords"
         coords: dict[tuple, list] = {}
@@ -312,6 +347,35 @@ def main():
                 (int(r["row"]), int(r["col"])))
         ctx["coords"] = coords
         print(f"[v2] coords mode: {sum(len(v) for v in coords.values())} weight entries")
+
+    # per-module RTN set (W35)
+    rtn_set: set = set()
+    if args.rtn_modules:
+        for part in args.rtn_modules.split(";"):
+            rng, projs = part.split(":")
+            lo, _, hi = rng.partition("-")
+            for l in range(int(lo), int(hi or lo) + 1):
+                rtn_set.update((l, p.strip()) for p in projs.split(","))
+    if args.rtn_from_stats:
+        cand, allmods = [], []
+        for r in csv.DictReader(open(args.rtn_from_stats)):
+            try:
+                ratio = float(r["obj_gptq_alt"]) / float(r["obj_rtn_alt"])
+            except (ValueError, ZeroDivisionError, KeyError):
+                continue
+            allmods.append((int(r["layer"]), r["proj"]))
+            if ratio > args.rtn_threshold:
+                cand.append((ratio, int(r["layer"]), r["proj"]))
+        cand.sort(reverse=True)
+        if args.rtn_topk > 0:
+            cand = cand[: args.rtn_topk]
+        sel = {(l, p) for _, l, p in cand}
+        if args.rtn_invert:   # W36: RTN the COMPLEMENT (modules the detector calls fine)
+            sel = set(allmods) - sel
+        rtn_set.update(sel)
+    if rtn_set:
+        print(f"[v2] per-module RTN for {len(rtn_set)} modules: {sorted(rtn_set)[:20]}{' ...' if len(rtn_set) > 20 else ''}")
+    ctx["rtn_modules"] = sorted(f"{l}:{p}" for l, p in rtn_set)
 
     layers = model.model.layers
     stats_rows = []
@@ -360,9 +424,13 @@ def main():
             for h in handles:
                 h.remove()
             if inps_alt:
-                handles = [m.register_forward_pre_hook(
-                    (lambda g: lambda _m, a: g.add_batch_alt(a[0]))(gptq[p]))
-                    for p, m in mods.items()]
+                def _alt_hook(g):   # must return None: a non-None return replaces the args
+                    def hook(_m, a):
+                        g.add_batch_alt(a[0])
+                        g.add_batch_pos(a[0])
+                    return hook
+                handles = [m.register_forward_pre_hook(_alt_hook(gptq[p]))
+                           for p, m in mods.items()]
                 for j in range(len(inps_alt)):
                     layer(inps_alt[j], **kws_alt[j])
                 for h in handles:
@@ -370,6 +438,12 @@ def main():
             for p, g in gptq.items():
                 mask = build_mask_for(mods[p], li, p, args, ctx, gptq=g)
                 st = {} if args.stats_dir else None
+                if (li, p) in rtn_set:
+                    rtn_quantize_(mods[p].weight.data, args.bits, args.group_size,
+                                  mask.to(mods[p].weight.device) if mask is not None else None,
+                                  sym=sym, scale_excl_mask=args.scale_excl_mask)
+                    g.free()
+                    continue
                 if args.quantizer == "awq":
                     g.awq_quantize(bits=args.bits, group_size=args.group_size, sym=sym,
                                    grid=args.awq_grid, mask=mask, stats=st)
@@ -396,6 +470,11 @@ def main():
             print(f"[v2] layer {li + 1}/{len(layers)} quantized "
                   f"(protected so far: {ctx['selected'] / 1e6:.1f}M)", flush=True)
 
+    nonfinite = sum(int((~torch.isfinite(p)).sum()) for n, p in model.named_parameters()
+                    if "layers" in n and p.dim() == 2)
+    wmax = max(float(p.abs().max()) for n, p in model.named_parameters()
+               if "layers" in n and p.dim() == 2)
+    print(f"[v2] finite check: non-finite linear weights = {nonfinite}; max |W| = {wmax:.4g}")
     if args.stats_dir:
         path = os.path.join(args.stats_dir, "stats.csv")
         with open(path, "w", newline="") as f:
@@ -429,7 +508,9 @@ def protocol(args, ctx):
             "n_calib": args.n_calib,
             "protect": args.protect, "budget_params": args.budget_params,
             "selected_params": ctx["selected"],
-            "topk_from": args.topk_from, "k": args.k,
+            "topk_from": args.topk_from, "k": args.k, "modules": args.modules,
+            "rtn_modules": ctx.get("rtn_modules"), "rtn_from_stats": args.rtn_from_stats,
+            "rtn_threshold": args.rtn_threshold, "rtn_topk": args.rtn_topk, "rtn_invert": args.rtn_invert,
             "kv": args.kv, "projs": args.projs, "seed": args.seed,
             "calib_seed": args.calib_seed, "coords_file": args.coords_file,
             "rotate": args.rotate,

@@ -151,7 +151,8 @@ def stage_ablate(args):
             batch = prompts[i:i + args.batch]
             texts = [chat(tok, ex["prompt"]) for ex in batch]
             enc = tok(texts, return_tensors="pt", padding=True,
-                      truncation=True, max_length=2048).to(model.device)
+                      truncation=True, max_length=2048,
+                      add_special_tokens=not args.single_bos).to(model.device)
             gen = model.generate(**enc, do_sample=False, max_new_tokens=MAX_NEW_TOKENS,
                                  pad_token_id=tok.pad_token_id)
             for ex, seq in zip(batch, gen):
@@ -181,6 +182,9 @@ def main():
     ap.add_argument("--prompts")
     ap.add_argument("--tag", default="baseline")
     ap.add_argument("--batch", type=int, default=16)
+    ap.add_argument("--single-bos", action="store_true",
+                    help="ablate: do not let the tokenizer add BOS on top of the chat template's own BOS "
+                         "(the frozen protocol double-BOSes every arm consistently; W35 control)")
     ap.add_argument("--heads")
     ap.add_argument("--topk-from")
     ap.add_argument("--k", type=int, default=32)

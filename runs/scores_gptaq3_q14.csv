@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gptaq3_q14,0.6969,0.7758,0.7301,0.8034,0.7515

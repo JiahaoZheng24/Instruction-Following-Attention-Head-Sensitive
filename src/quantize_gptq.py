@@ -32,6 +32,24 @@ SMOKE_PROMPTS = [
 
 def load_calib(kind: str, tokenizer, n: int, seqlen: int, seed: int = 0) -> list[str]:
     """seed k>0 -> skip the first k*n eligible docs (disjoint calib replicates)."""
+    if kind == "c4wrongchat":
+        # W38 control: the same c4 documents wrapped in a FOREIGN template
+        # (ChatML for non-Qwen models, Llama-3 header for Qwen). The wrapper
+        # tokenises into ordinary pieces, not this model's special tokens.
+        docs = load_calib("c4", tokenizer, n, seqlen, seed=seed)
+        is_qwen = "<|im_start|>" in (tokenizer.chat_template or "")
+        if is_qwen:
+            wrap = "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{d}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        else:
+            wrap = "<|im_start|>user\n{d}<|im_end|>\n<|im_start|>assistant\n"
+        return [wrap.format(d=d) for d in docs]
+    if kind == "c4chat":
+        # W37: the SAME c4 documents, each wrapped as the user turn of the
+        # model's chat template. Isolates "the calibration Hessian has seen
+        # the template tokens" from "the calibration content is chat".
+        docs = load_calib("c4", tokenizer, n, seqlen, seed=seed)
+        return [tokenizer.apply_chat_template([{"role": "user", "content": d}],
+                                              tokenize=False, add_generation_prompt=True) for d in docs]
     if kind == "instruct":
         rows = [json.loads(l) for l in open("data/calib_prompts.jsonl", encoding="utf-8")]
         rows = rows[seed * n: seed * n + n]
@@ -163,12 +181,32 @@ def main():
         if os.environ.get("IFH_OFFLOAD_DIR"):
             extra["offload_to_disk_path"] = os.environ["IFH_OFFLOAD_DIR"]
         if args.v2:
-            # GPTAQ / GPTQv2 in the installed gptqmodel is selected by METHOD,
-            # not by a `v2` kwarg (W30 tasks 1-2 failed on `v2=`). Default
-            # GPTAQConfig.alpha = 0.25, i.e. the asymmetric correction is
-            # itself down-weighted — note this in the paper.
-            from gptqmodel.quantization.config import METHOD
-            extra["method"] = METHOD.GPTAQ
+            # GPTAQ / GPTQv2. The installed gptqmodel has neither a `v2` kwarg
+            # (W30) nor METHOD.GPTAQ (W31); the option name differs across
+            # versions, so detect it: an enum member or a config field whose
+            # name mentions GPTAQ / V2. Fail loudly with the available names.
+            import dataclasses
+            import gptqmodel.quantization.config as _qc
+            members = {}
+            for enum_name in ("METHOD", "QUANT_METHOD", "QuantMethod"):
+                en = getattr(_qc, enum_name, None)
+                if en is not None:
+                    members.update({m.name: m for m in en})
+            fields = [f.name for f in dataclasses.fields(QuantizeConfig)]
+            hit = [n for n in members if "GPTAQ" in n.upper() or "V2" in n.upper()]
+            fhit = [f for f in fields if f.lower() in ("v2", "gptaq", "use_v2", "gptq_v2")]
+            if hit:
+                key = "method" if "method" in fields else ("quant_method" if "quant_method" in fields else None)
+                assert key, f"no method field in QuantizeConfig: {fields}"
+                extra[key] = members[hit[0]]
+                print(f"[quantize] GPTAQ via {key}={hit[0]}")
+            elif fhit:
+                extra[fhit[0]] = True
+                print(f"[quantize] GPTAQ via field {fhit[0]}=True")
+            else:
+                print(f"[quantize] GPTAQ not found. enum members={sorted(members)} "
+                      f"config fields={fields}")
+                raise SystemExit(3)
         if args.damp_percent is not None:
             extra["damp_percent"] = args.damp_percent
         qcfg = QuantizeConfig(bits=args.bits, group_size=args.group_size,

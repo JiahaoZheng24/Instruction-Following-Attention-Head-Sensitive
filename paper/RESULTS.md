@@ -8,17 +8,66 @@
 
 ## 0. 论文一句话与主张清单
 
-**一句话**：低比特 GPTQ 存在一种独特的灾难模式，起因是误差补偿把极少数临界权重的舍入误差扩散进整个网络；同一模型用不做补偿的 RTN 反而高 30–40 分。理解这个原因，就能解释"保护显著权重"什么时候值钱、为什么定位不等于保护、为什么 PPL/MMLU 看不见它。
+**一句话（2026-09-06 终版）**：3-bit GPTQ 在部分 instruct 模型上崩塌（IFEval 比不做补偿的 RTN 低 30–40 分）。原因是补偿**过拟合校准集**：c4 校准 Hessian 从未见过 chat 模板 token，GPTQ 把舍入误差推进了前几个 block 里形成 attention sink / massive activation 的方向；表达是早期层残差流在首个模板 token 处失稳并向全序列扩散。把前两个 block 的一两个 down_proj 改回 RTN（**零额外比特**）、用 chat 对话校准、或加大 damping 都治愈；层级量化目标（哪怕用 chat 数据）看不见这个位置，在 Llama 上甚至把凶器标成好模块。
 
 | # | 主张 | 关键证据（节） |
 |---|---|---|
-| C1 | 3-bit 下存在与优雅退化不同的**崩塌模式**，2/11 模型出现，不按家族、规模或任何 fp16 统计量出现 | §2 |
-| C2 | 崩塌不是信息损失而是**补偿之害**：RTN 反超 GPTQ；2×2 因子；零化探针；事后 vs 环内；保护不足更差；旋转消崩塌 | §3 |
-| C3 | **保护的价值有条件**：≈拦下的补偿之害；优雅态、4-bit、2-bit 全部 CI 跨零 | §4 |
-| C4 | **定位 ≠ 保护**：因果头、超权重、事后恢复（哪怕 11% 参数）全失败 | §5 |
-| C5 | **似然指标探不到崩塌**：PPL/MMLU 漏报 Q14 崩塌；RTN 符号或小型生成探针即可检出 | §6 |
+| C1 | 3-bit 下存在与优雅退化不同的**崩塌模式**：17 模型 2 个（Llama-3.1-8B .150 vs RTN .565；Qwen2.5-14B .412 vs .697），不可从 fp16 统计量预测；第三种触发（act-order × 中等 damping）在 Mistral-7B 复现同一表达 | §2, §9.10f–i |
+| C2 | 崩塌是**校准集过拟合**而非信息损失：RTN 反超；c4 三种子皆崩、wikitext/ultrachat 治愈、c4×512 不治；damping 阶梯单调治愈（ρ≥2）；AWQ/RTN 免疫；优雅模型无法诱导 | §3, §9.4–9.10e |
+| C3 | **损伤起于早期 block 的模板 token，零比特可修**：Q14 单模块（第 4 层 down_proj，chat 目标比 257）RTN → .751；Llama block 0–1 的两个 down_proj RTN → .625；Mistral block 0–1 RTN → .423；逐位置分歧显示损伤起点是 `<|end_header_id|>` / 首个 `\n`，治愈臂该位置误差回到 0.2–0.5 | §9.10i–k |
+| C4 | **token 平均的层级目标不是定位器，逐位置的是**：在形成 sink 的早期 down_proj 上，token 平均目标 99.9% 来自 BOS 一个 token，GPTQ 在那里赢 6 倍、在模板 token 输 85–102 倍；Llama 标记模块全 RTN 不治（.153）、补集 RTN 治（.615）；改成"模板位置 2–7 的最大 GPTQ/RTN 误差比"后凶器在 Llama/Q14/Nemo 上都排第 1，前瞻 4/5（Mistral-v0.2 假阳性）；触发 2（act-order × damping）不可检测。保护的价值 = 正则化的价值（TaCQ/hmag ≈ damp5，优雅态无增益）；定位 ≠ 保护 | §4, §5, §9.10j–o |
+| C5 | **似然指标探不到崩塌**：damp0.01 臂 PPL 21.8 / IFEval .128；Q14 MMLU 漏报；RTN 符号、E_d 比值排名或 32 条 prompt 的逐位置分歧即可检出 | §6, §9.10b |
 
-**待补的洞（W20–W25，见 §9）**：配置混淆（damping / asym / 校准语料 / AWQ）、方程级机制、group-scale 伪影、普查扩展、无梯度判据。
+（原 v2 版主张与"待补的洞"见 §9b；W20–W41 全部回收，实验冻结 2026-09-07。）
+
+### 0b. 冻结时结果总表（2026-09-07；IFEval 541 avg4，3-bit g128 sym act-order，c4 ρ=0.05 为冻结协议；详见 §9.10）
+
+**现象**
+
+| | fp16 | GPTQ（冻结协议）| RTN | 其余 15 模型 |
+|---|---|---|---|---|
+| Llama-3.1-8B-Instruct | .768 | **.150** | .565 | GPTQ ≥ RTN（11 个符号点一致），无崩塌 |
+| Qwen2.5-14B-Instruct | .820 | **.412** | .697 | |
+| Mistral-7B-v0.3（触发 2：act-order × ρ=0.5）| — | **.173**（ρ=0.05 .468；ρ=0.5 无 act-order .472）| ≈.409 | |
+
+**治愈（Llama / Q14）**
+
+| 干预 | Llama | Q14 | 说明 |
+|---|---|---|---|
+| damping ρ=5 | .642 | .786 | Llama 阈值在 ρ=1→2（.152→.578）；Mistral 反向 |
+| ultrachat 校准 | .669 | .772 | 5 个优雅模型上安全 |
+| **c4 原文包进本模型模板（c4chat）** | **.644** | **.772** | 内容不变，只加模板 token |
+| c4 包进外来模板 | .162 | .750 | Llama 需要自己的 `<|end_header_id|>`；Qwen 只需早期出现的 `\n` |
+| AWQ（无补偿）| .597 | .678 | 免疫 |
+| GPTAQ（补偿更强）| .150 | .752 | 一崩一愈 |
+| **单模块改 RTN（零比特）** | **.630**（L1 down_proj）/ .629（L0）| **.751**（L4 down_proj，三次复评）| 两模块 .625/.650；fp16 上界 .647–.674 |
+| 早期注意力 fp16（Llama 0–2 / 0–5 层）| .158 / .151 | — | 触发在 MLP，不在注意力 |
+| 检测器标记的 124 模块全 RTN / 补集 100 模块全 RTN | .153 / **.615** | — | 双重分离 |
+
+**机制（逐位置分歧，32 条 prompt；逐位置目标，64 条 prompt）**
+
+| | Llama | Q14 | Mistral ρ=0.5 |
+|---|---|---|---|
+| 损伤起点 | 第 2 层输出，位置 4 `<|end_header_id|>`，误差 3.85 | 第 5 层输出，位置 2 首个 `\n`，误差 3.96 | 第 2 层输出，全部非 BOS 位置 ×119 |
+| 治愈后该位置 | 0.50 | 0.19 | — |
+| sink 形成的 down_proj 输入范数（BOS / 其余）| L1：481 / 1–2.5 | L4 位置 2：70 / 4–25 | L1：807 / 1 |
+| token 平均目标 GPTQ/RTN（凶器排名）| 0.17（221/224）| 257（1/336）| <1 |
+| **逐位置目标 GPTQ/RTN，位置 2–7 最大（排名）** | **102**（1/224）| **456**（1/336）| 5.1（1，但真凶在 0–2 层 v/o，不可检）|
+
+**检测器前瞻（早期 down_proj 逐位置比值 → 该模块改 RTN 的 IFEval Δ）**：Llama 102 → +47.5；Q14 456 → +33.9；Nemo 60 → +4.9；Mistral-v0.2 31 → −1.5（两种子，假阳性但无害）；L3.2-3B 4.7 → +2.3；Q7 3.1 → +1.2；gemma-2-9b 1.95（静默）→ −1.3。
+
+**下游（治愈臂）**
+
+| | IFEval | GSM8K | MMLU | WikiText PPL |
+|---|---|---|---|---|
+| Llama none / 单模块 RTN 规则 / damp5 / fp16 | .150 / .650 / .642 / .768 | .002 / .590 / .583 / .843 | .561 / .568 / .533 / .683 | 59.2 / **10.0** / 23.0 / 7.2 |
+| Q14 none / 规则 / damp5 / fp16 | .412 / .750 / .786 / .820 | .129 / .890 / .892 / .926 | .735 / .732 / .745 / .799 | 7.71 / 7.83 / 7.62 / 5.70 |
+
+**4-bit（g128；none → 规则，种子 0 / 1）**：Q14 .794→.814 / .803→.818（fp16 .820）；Nemo .603→.626 / .615→.630（fp16 .651）；Llama .745→.782 / .762→.756（fp16 .768；damp 0.1 .765）。同签名亚阈值存在（Llama 位置 4 误差 1.33、范数 1.56×）。
+
+**协议偏差**：生成管线双 BOS（Llama/Mistral 受影响）；单 BOS 对照 Llama fp16 .768→.808，none .150→.158。所有臂一致，不重跑。
+
+**冻结时诚实项**：自然崩塌 n=2 + 诱导 1；仅 GPTQ 家族；fake-quant；IFEval 为主；检测器不覆盖触发 2、一个假阳性；无害普查家族相关（Nemo +4.9、L3.2-3B +2.3、Q7 +1.2、gemma −1.3、Mistral-v0.2 −1.5）；≤32B。
 
 ---
 
@@ -27,7 +76,7 @@
 - **量化**：GPTQ，g128 / sym / desc_act / c4 校准 128×2048 / percdamp 0.05（gptq_core.py，IST-DASLab 循环的 faithful port）；fake-quant fp 检查点。RTN 为无补偿对照（同 group / sym）。两套实现：gptqmodel packed（W0，TORCH backend）与自研 v2；主线全部用 v2，packed 仅作复现。
 - **保护**：TaCQ 判据 s=|W|·|∇L|·|ΔW_rtn|（2504.07389 faithful 复现，IF 数据梯度，全局分位数阈值）环内豁免；预算 ≈ 线性层参数 0.55%（7B=37.6M，8B=40.2M，14B=70M）= 32 个注意力头的参数量（公平安慰剂对照），另有 1e4–1e7 扫描。
 - **旋转**：QuaRot 式 R1（随机正交，离线融合）；恒等性 rotfp_llama 0.7848 ≈ fp16 0.7683。
-- **评测**：IFEval 541 条 avg4（四指标均值）为默认分数；GSM8K；Multi-IF；MMLU（5-shot 选项 logit）；WikiText-2 PPL。生成：贪心，max_new_tokens 1280，chat template。
+- **评测**：IFEval 541 条 avg4（四指标均值）为默认分数；GSM8K；Multi-IF；MMLU（5-shot 选项 logit）；WikiText-2 PPL。生成：贪心，max_new_tokens 1280，chat template。**协议偏差（W35 发现）**：生成管线在 chat 模板自带 BOS 之上再让 tokenizer 加一个 BOS（Llama/Mistral 受影响，Qwen 不受）；所有臂一致。单 BOS 对照：Llama fp16 .768 → .808，GPTQ ρ=0.05 .150 → .158，相对结论不变（§9.10j）。论文写明并附对照表；不重跑。
 - **统计**：逐题配对 bootstrap 5000 次，95% CI（src/stats_tests.py）。
 - **代码语义要点（写作用）**：被保护权重在轮到它之前照常吸收前面列的补偿，轮到时豁免舍入并注入零误差，即"自由 fp16 吸收器"，不是冻结原始值。group scale 在 v2 中由组内最大 |W|（含被保护项）决定，W22 检查此项。
 
@@ -340,7 +389,9 @@ Multi-IF（prompt_strict t1/t2/t3）→ 附录：Llama fp16 .722/.559/.409，non
 | OWQ / SpQR / SqueezeLLM / SliM-LLM | 方法 | 敏感权重混合精度保 PPL（全部建于 GPTQ 之上）| 无 regime 概念、无机制、无安慰剂；cols 臂引 OWQ 存储格式 |
 | AWQ | 方法 | 激活感知缩放保护 1% 通道，非补偿 | 预测其不崩（W21 验证）|
 | QuIP / QuaRot / SpinQuant | 方法 | 旋转去离群 | 我们把旋转当 regime 杠杆测：消崩塌但 14B 输 tacq 11.7 |
-| massive activations / attention sinks | 分析 | 激活离群结构 | 其标记不预测 regime（§2.4）|
+| massive activations（Sun et al. 2402.17762）/ attention sinks（2309.17453）| 分析 | 巨量激活在前 2–4 层突然出现，位于首 token 与首个 `.`/`
+`，充当注意力隐式 bias | fp16 侧的 sink 标记不预测 regime（§2.4）；但崩塌的**表达**正是这些位置：Llama 第 2 层输出的 `<|end_header_id|>`、Q14 第 5 层输出的首个 `
+`（§9.10j）。措辞："GPTQ 用 c4 校准时从未见过模板 token，补偿把误差推进了 sink 形成的方向" |
 | Hase et al. 2023（NeurIPS）| 分析 | 定位 ≠ 编辑 | 我们是其量化域对应物（heads null 全 regime）|
 | CWP（2601.12033）、FAQ（2601.11200）| 方法 | 关键权重保护需 ~60% FP16；校准侧修复 IFEval +0.5 | 预算差 3 个量级 |
 | 一篇 2025 评测（疑为 2509.03054 或 2507.17417，**落笔前核实**）| 分析 | GPTQ 在 Llama-3.2-1B 多份实现上均显著退化，"不太可能是单一仓库或 checkpoint 的伪影"，归因校准敏感 | 与我们"两套实现都崩"同一逻辑 |
@@ -359,6 +410,18 @@ Multi-IF（prompt_strict t1/t2/t3）→ 附录：Llama fp16 .722/.559/.409，non
 | Training Dynamics Impact PTQ Robustness（2510.06213）| 训练超参（学习率）决定 checkpoint 对 PTQ 的稳健性 | "为什么是这个模型"的训练侧解释候选；与我们的"量化时可预测、fp16 不可预测"互补 |
 | GPTQ-intrinsic LoRA（2606.01412）；QAM-W（2605.26339）；OffQ（2606.07116）| 提到用 10× damping 避免大模型数值崩溃；结构化离群处理 | damping 被当作数值稳定手段而非正则化——我们的差异点 |
 | GPTQModel 库（默认 damp_percent 0.1，推荐 0.1；AutoGPTQ/原始 GPTQ 0.01）| — | **我们 Llama ρ=0.2 仍崩（.189）、Q14 ρ=0.1 仍崩（.422）**：社区推荐值救不了，必须写明 |
+
+#### 8.1c 第四轮近邻（2026-09-06，W36 闭合后按"零比特局部修复 / sink 形成 block / 模板 token"三个新主张检索；★ 已打开核对摘要）
+
+| 论文 | 他们有的 | 我们有而他们没有的 / 措辞 |
+|---|---|---|
+| ★ **The Structure of Quantization Damage in LLMs: Why the Next Bit Should Be Spent Globally**（2609.01587，**2026-09**）| 9 模型 4 家族，RTN/GPTQ/AWQ；结论"损伤是弥散的：8/9 模型恢复 75% 差距要一半的层"，局部修补输给全局细粒度 21–52 点；例外 Qwen3-8B 损伤"尖锐集中"，未解释 | **最近、最必须划界的一篇。** 他们描述优雅态；我们证明崩塌态损伤在 1–2 个模块且零比特可修（Llama 2 个 down_proj .150→.625，Q14 1 个 .412→.751）。他们的 Qwen 例外就是我们的 Q14 现象。措辞："in the graceful regime damage is diffuse (2609.01587); in the collapse regime it is two modules, and it is the compensation, not the precision." |
+| ★ **UPQ**（2506.09104）| 指出用开源预训练语料校准 instruct 模型会伤 IFEval/MMLU，归因"post-training 数据私有"，用 INT4→INT2 渐进 PTQ+QAT 蒸馏修 | 他们当作数据缺口；我们证明操作变量是模板 token（W37 c4chat 直接检验）且只需去掉两个模块的补偿。引为"现象已被注意到，原因未被解释" |
+| ★ 2409.11055（instruct 模型量化评测，含 IFEval）| GPTQ/AWQ/SmoothQuant/FP8 在 Leaderboard-v2 上的评测；AWQ 掉分小于 GPTQ | 只有评测；我们的 AWQ 免疫（Llama .597、Q14 .678）与之一致，引为旁证 |
+| ★ **RSQ**（2503.01820）| GPTQ 目标里按注意力分数给 token 加权，"重要 token 学得更好"；含 LLaMA3-8B-Instruct 3-bit | 与我们"token 平均目标看不见单个模板位置"同方向的方法证据；他们没有诊断崩塌、没有 RTN 对照。若做位置加权检测器（W38 候选），必须引 |
+| ★ InsertQuant / Massive Spikes are Bias Vectors（2606.02288）；CushionCache（2406.12016）；OASIS（2605.17887）| sink / 巨量激活作为量化的**激活侧**障碍：钳制尖峰并用模板向量恢复功能；前缀 sink token；架构层面减轻 sink | 全是激活量化或架构；没有人说**权重补偿会破坏 sink 形成 block**。措辞："prior work protects the sink from activation quantization; we show weight-side error compensation can corrupt the blocks that manufacture it." |
+| ★ ResComp（2604.07955）；Cross-Layer Compensation（2607.14630）| 补偿感知误差项、跨层补偿——都是"把补偿做得更好" | 我们是"补偿本身在哪些模块该关掉"；引为补偿方法谱系 |
+| llm-compressor 文档（vLLM）| 实践建议"instruct 模型用 chat 模板校准，512 条 × 2048" | **审稿风险**：修法是社区常识。回答：常识没有解释；我们解释了为什么（模板 token × sink 形成 block × 补偿），并给了不换校准集的零比特修法 |
 
 ### 8.2 现象与动机引文
 
@@ -571,12 +634,302 @@ W29 任务 16–20（Q14 damp5 GSM8K/MMLU、三个 2-bit damping 臂）因 /stor
 - **配方候选转为 damping**：Q7 damp5 +3.0、Llama +49、Q14 +37，尚无一例变差；W31 在其余 14 个模型上测 ρ=5。
 - **gptqmodel 限制**：`damp_percent` 必须在 (0,1]，而 Llama 的治愈点在 ρ∈(1,2]；库允许的最大值救不了 Llama（ρ=1 → .152），能救 Q14（ρ=1 → .748）。W31 用 0.99 出 packed checkpoint 验证。安装的 gptqmodel 没有 `v2` 参数，GPTAQ 需用 `METHOD.GPTAQ`（默认 alpha 0.25，即它自己的非对称修正也被降权，本身是一种正则化）。
 
-### 9.11 论文主张终版草案
+### 9.10e W31 裁决（2026-09-05）：chat 校准是干净配方；固定 damping 不是；packed 验证兑现
 
-- **C1** 3-bit GPTQ 存在补偿崩塌模式，17 模型中 2 个，不可从 fp16 统计量预测，但可在量化时用 chat-Hessian 目标比检测（W29 验证）。
-- **C2** 崩塌是**校准集过拟合**：补偿把层级最小二乘拟合到不迁移的校准 Hessian 上。证据：OOD 语料致崩、chat 校准治愈、岭正则（damping）治愈、GPTQ 解在 chat 输入下输给 RTN、无补偿量化器免疫、优雅模型无法诱导。
-- **C3** "保护显著权重"的价值 = 正则化的价值：崩塌态 +37/+49 与 damp5 打平；优雅态两者同为 +3 不显著；4-bit 零。
-- **C4** 定位 ≠ 保护（不变）。
+**token 匹配的 chat 校准（ultrachat 128 段带回复对话）vs c4，GPTQ3**
+
+| 模型 | c4 | prompt-only instruct | **ultrachat** |
+|---|---|---|---|
+| Llama-3.1-8B | .150 | .611 | **.669** |
+| Qwen2.5-14B | .412 | .754 | **.772** |
+| Qwen2.5-7B | .672 | .660 | .682 |
+| Mistral-Nemo-12B | .476 | .374 | .524 |
+| Llama-3.2-3B | .577 | .502 | .603 |
+| gemma-2-2b | .504 | .450 | .493 |
+
+六个模型全部 ≥ c4 减 1 分，两个崩塌治愈到各自校准臂的最高值。prompt-only 的损失确认是 token 数量效应。**配方：instruct 模型用足量的真实对话（含回复）校准。**
+
+**damping ρ=5 全普查（vs ρ=0.05）**
+
+| 帮 | Δ | 无差 | Δ | 害 | Δ |
+|---|---|---|---|---|---|
+| Llama-3.1-8B | +49 | Mistral-24B | −0.4 | **Mistral-7B v0.3** | **−30（.167，低于 RTN .420）** |
+| Qwen2.5-14B | +37 | OLMo-2-7B | 0 | **Mistral-7B v0.2** | **−37（.126，低于 RTN .440）** |
+| Qwen2.5-3B | +6.2 | gemma-2-2b | 0 | SmolLM2-1.7B | −4.7 |
+| Nemo | +4.8 | Llama-3.2-3B | −0.3 | gemma-2-9b | −1.8 |
+| Qwen2.5-32B | +3.0 | Llama-3.2-1B | −0.6 | | |
+| Qwen2.5-7B | +3.0 | | | | |
+| Falcon3-7B | +2.7 | | | | |
+| Llama-3-8B | +1.6 | | | | |
+
+- **固定 ρ 不是通用配方**：两个 Mistral-7B 在 ρ=5 输出字节级乱码（� 与标点沙拉，循环率 100%），远低于 RTN。这不是过拟合的反面，像是数值或分组问题：重 damping 下 GPTQ 的极限是"RTN + act-order 分组"而非普通 RTN。W32 拆：ρ 阶梯 {0.5, 1(旧), 2}、ρ=5 关 act-order、ρ=1e6（= act-order 分组的 RTN）、ρ=5 的有限性检查。
+- 论文措辞相应改为："正则化强度是模型特异的；应当用量化时可算的 chat-Hessian 目标比来**选择** λ，而不是设常数"。W32 检验 argmin E_d 是否追踪 IFEval 最优 λ（四模型 × ρ∈{0.05,0.5,2,5}）。
+
+**packed gptqmodel，damp_percent = 0.99（库允许的最大值），真实 3-bit kernel**
+
+| 模型 | packed 0.99 | fake-quant ρ=1 | 预测 |
+|---|---|---|---|
+| Llama-3.1-8B | **.168** | .152 | 仍崩（治愈点在 ρ∈(1,2]，库上限之外）✓ |
+| Qwen2.5-14B | **.769** | .748 | 治愈 ✓ |
+
+两个预注册预测都兑现；fake-quant 与 packed 差 ≤2 分，"fake-quant"这条 limitation 可以关掉。
+
+**GPTAQ**：安装的 gptqmodel 既无 `v2` 参数也无 `METHOD.GPTAQ`；W32 改为自动探测选项名，探测不到则打印可用名退出。
+
+### 9.10f W32 裁决（2026-09-05）：GPTAQ 一崩一愈；层目标不能选 λ；Mistral 的 damping 灾难与 act-order 绑定
+
+**GPTAQ（gptqmodel `gptaq=True`，alpha 0.25，packed，c4，damp 0.05）**：Llama **.150**（与 GPTQ 同崩）；Q14 **.752**（治愈；GPTQ .412）。非对称校准把每层的目标拉向 fp 输出，对 Q14 那种"单模块灾难"（第 4 层 down_proj，累积漂移型）有效，对 Llama 的弥散过拟合无效。OBS 家族主张：**崩塌在 GPTQ 及其 2025 后代 GPTAQ 上都出现（Llama），GPTAQ 的修正本身是一种正则化（Q14）**。
+
+**E_d 比值（chat-Hessian 目标 GPTQ/RTN）随 ρ 变化 vs IFEval**
+
+| ρ | Llama E_d 中位 / 输给 RTN 模块 / IFEval | Q14 | Q7 | Mistral-7B |
+|---|---|---|---|---|
+| 0.05 | 1.02 / 124 / .150 | .91 / 88 (max 257) / .412 | .86 / 34 / .672 | .83 / 26 / .468 |
+| 0.5 | .84 / 6 / （W33）| .73 / 16 (max 10.5) / **.779** | .80 / 11 / .684 | .79 / 0 / **.173** |
+| 1 | — / .152 | — / .748 | — | — |
+| 2 | .79 / 0 / .578 | .76 / 9 (max 1.9) / .775 | — / .681 | .81 / 0 / **.180** |
+| 5 | .82 / 0 / .642 | — / .786 | .85 / 9 / .702 | .85 / 3 / **.167** |
+
+- **E_d 比值是跨模型的检测器，不是模型内的 λ 选择器**：Llama 在 ρ=0.5 只剩 6 个模块输给 RTN，而 ρ=1 的 IFEval 仍是 .152；治愈发生在 ρ∈(1,2]，层目标看不到这个阈值。Q14 的最大模块比（257 → 10.5 → 1.9）与治愈同步，是 Q14 型崩塌的合理监控量。
+- **Mistral-7B v0.3 的 damping 灾难**：ρ=0.5/2/5 全部 .17–.18（字节乱码），ρ=5 关 act-order .492，ρ=1e6（= act-order 分组的 RTN）.409 ≈ RTN .420。权重全部有限，最大 |W| 不变，逐层位移、逐层误差、H 谱全部正常，两个 Hessian 下的层目标都说 GPTQ 赢 RTN。**这是层级目标完全看不见的第二种失败模式，与 act-order × 中等 damping 绑定，机制未知**；W33 保留 checkpoint 做权重对比与分歧曲线。论文处理：如实报告为 limitation 与"层级代理失明"的又一例；配方只推荐真实对话校准，不推荐固定 λ。
+- Q7、Q14 在 ρ∈[0.5, 5] 都平稳（Q14 .775–.786，Q7 .681–.702）。
+
+**W33（最后一批，8 臂）**：三个治愈臂的校准种子副本；Llama ρ=0.5 IFEval 与 ρ=1 日志；Mistral ρ=0.05 / 0.5 保留 checkpoint + 权重逐模块对比 + 分歧曲线 + ρ=0.5 关 act-order。之后只写不跑。
+
+### 9.10g W33 裁决（2026-09-05）：治愈种子稳健；层目标既不必要也不充分；Mistral 的失败在第 2 层残差流爆炸
+
+- **种子副本**：Llama damp5 cs1 .642（cs0 .642）；Llama ultrachat cs1 .691（.669）；Q14 ultrachat cs1 .774（.772）。三个 headline 治愈全部种子稳健。
+- **Llama ρ=0.5 IFEval .173、ρ=1 .152**，而 chat-Hessian 目标在 ρ=1 时 224 个模块全部 GPTQ 赢 RTN（中位 .77）。治愈在 ρ∈(1,2]。**层级部署目标不是崩塌的充分解释**：它在 ρ=0.05 时能把两个崩塌模型排到前两名，但不能解释同一模型内 ρ=1 与 ρ=2 的差别。
+- **Mistral 取证**：ρ=0.5 与 ρ=0.05 的 checkpoint 逐模块对比无异常（无非有限值、无零行、最大 |W| 不变、相对 Frobenius 差 ~0.31 均匀分布）。分歧曲线：ρ=0.5 的残差流在**第 2 层相对误差 117、cos_mean 0.08**，而最后一个 prompt token 的 cos 仍 0.76 —— 破坏集中在少数位置（疑为 BOS / attention sink），并被后续层非线性放大；ρ=0.05 的曲线正常（L2 cos 0.92）。ρ=0.5 关 act-order .472（正常）。**结论：崩塌的表达是早期层在特定位置的非线性失稳，层级线性目标原则上看不见。**
+- 论文机制句相应改为两层："校准集过拟合（默认 damping 下）与 act-order × 中等 damping（Mistral）是两种**触发**；**表达**都是早期层残差流在少数位置的爆炸/塌缩；chat 校准与适度正则化通过消除触发来治愈。" W34 验证"少数位置 = sink 位置"与"保护早期层注意力即可治愈"。
+
+### 9.10h W34（jobs/w34_sink.sh，10 臂）
+逐位置分歧（位置 0–7 vs 其余）：Mistral ρ=0.5 / 0.05、Llama ρ=0.05 / 1 / 2 / 5；结构化保护：Llama 与 Mistral(ρ=0.5) 的 0–2 层 q/k/v/o 全 fp16（≈0.8–1% 参数）vs 同预算 14–16 层对照；Q14 的第 4 层 down_proj 单模块 fp16 与 0–2 层注意力。若早期层保护治愈而中层不治愈，机制句成立并给出一个与 CASIA"前几层高精度"相接的结构化修复。
+
+### 9.10i W34 裁决（2026-09-06）：崩塌的表达 = 前几层非 sink 位置的残差流范数膨胀；两个崩塌可被单点结构修复，Llama 不能
+
+**逐位置分歧（32 条 chat prompt；位置 0 为 BOS）**
+
+| 臂 | IFEval | 爆炸层 | 该层非 sink 位置相对误差 | 范数比（非 sink）| 位置 0 |
+|---|---|---|---|---|---|
+| Mistral ρ=0.5 | .173 | L2 | **119** | **119×** | 0.20（完好）|
+| Mistral ρ=0.05 | .468 | — | 0.66 | 1.3× | 0.01 |
+| Llama ρ=0.05 | .150 | L4 | 3.2 | **3.3×** | 0.08 |
+| Llama ρ=1 | .152 | L4 | 1.8 | **1.9×** | 0.16 |
+| Llama ρ=2 | .578 | — | 0.59 | 1.05× | 0.15 |
+| Llama ρ=5 | .642 | — | 0.53 | 0.99× | 0.17 |
+
+- sink 位置（BOS）本身完好，**其余位置的残差流在第 2–4 层范数膨胀**：崩塌臂 1.9× 到 119×，治愈臂 ≈1×。这是层级线性目标看不见、但一次 32 条 prompt 的前向就能测到的**充分签名**，两种触发（校准过拟合、act-order × damping）表达相同。与 attention-sink 文献一致：sink 结构被早期层的量化误差破坏后，其余 token 的注意力输出失去"倾倒处"而膨胀。
+- 协议备注：生成与校准管线在 chat 模板自带 BOS 之上又让 tokenizer 加了一个 BOS（所有臂含 fp16 一致；位置 0/1 数值相同即此），W35 用单 BOS 复评 fp16 与 none 作对照。
+
+**结构化保护（整模块 fp16）**
+
+| 臂 | 预算 | IFEval | 判决 |
+|---|---|---|---|
+| Mistral ρ=0.5 + 0–2 层 q/k/v/o | 126M（1.7%）| **.437**（none .468）| 治愈 |
+| Mistral ρ=0.5 + 14–16 层 q/k/v/o（对照）| 126M | .170 | 无效 |
+| Q14 + 第 4 层 down_proj 单模块 | 71M（0.5%）| **.757**（none .412，tacq@70M .782）| 治愈 |
+| Q14 + 0–2 层注意力 | 189M | .373 | 无效 |
+| Llama + 0–2 层 q/k/v/o | 126M | .158 | 无效 |
+| Llama + 14–16 层 q/k/v/o | 126M | .155 | 无效 |
+
+- 三个崩塌里两个有**单点结构解**（Mistral 早期注意力，Q14 单个 down_proj），且检测器（chat 目标比 257 的模块 / 第 2 层爆炸）指向的位置就是解。Llama 的触发分布在更多层（chat 目标比最差的是 5–10 层 k/q_proj），前三层不够。
+- W35：用检测器直接选模块，对被标记的模块改用 RTN（**零额外比特**）；Q14 单模块 RTN；Llama 0–5 层注意力与 top-12 模块 fp16；Q14 逐位置；单 BOS 对照。
+
+### 9.10j W35 裁决（2026-09-06）：Q14 零比特单模块治愈；Llama 的崩塌不在检测器标记的模块里，而在它说"没问题"的前几个 block；损伤起点是 chat 模板 token
+
+**零额外比特 / 定位臂（3-bit g128，IFEval avg4）**
+
+| 臂 | 额外比特 | IFEval | 判决 |
+|---|---|---|---|
+| Q14 + 第 4 层 down_proj 改 RTN（1 模块）| **0** | **.751**（fp16 版 .757；none .412；RTN 全 .697）| 零比特治愈 |
+| Llama + 124 个被标记模块（chat 目标比 >1）全改 RTN | 0 | .153 | 无效 |
+| Llama + 被标记 top-24 改 RTN | 0 | .168 | 无效 |
+| Llama + 被标记 top-12 fp16（96M）| 1.3% | .122 | 无效（略低于 none）|
+| Llama + 0–5 层 q/k/v/o fp16（252M）| 3.4% | .151 | 无效 |
+| Mistral ρ=0.5 + 0–2 层 q/k fp16（63M）| 0.8% | .180 | 无效（W34 q/k/v/o .437 治愈 → v/o 是必要项）|
+
+- **Q14 闭环**：检测器（chat 目标比 257 的单模块）→ 单模块 RTN → 治愈，一个比特都不多花。这是论文里最干净的一条因果链。
+- **Llama 的反转**：把检测器标记的 124/224 个模块全部换成 RTN 仍崩塌（.153），而 RTN 全模型 .565。因此崩塌由**另外 100 个未标记模块**承载 —— 恰是 chat 目标说 GPTQ 优于 RTN 的模块：0–2 层全部 7 个模块（down_proj 比值 0.24 / 0.17 / 0.94，即 GPTQ 在那里"补偿得最漂亮"）、3–4 层除 down_proj 外全部、所有层的 o_proj、最后三层。与 ρ=1 的"224 个模块全部更优仍崩塌"一致：**层级目标（哪怕用 chat 数据）在 Llama 上不只是不充分，它把凶器标成了好模块。**
+- **损伤起点 = chat 模板 token（逐位置分歧，tokenizer 已核对）**：
+  - Llama ρ=0.05：第 2 层输出（block 0–1 之后）位置 4 相对误差 **3.85**，其余位置 0.65；位置 4 = `<|end_header_id|>`（双 BOS 管线下；单 BOS 下是位置 3）。到第 4 层其余位置膨胀 3.3×。ρ=1：同位置 1.54 → 第 4 层位置 5（`\n\n`）5.17；ρ=2/5：位置 4 仍有 1.2–1.9 的误差但**不向其余位置扩散**（范数比 ≈1）。
+  - Q14 ρ=0.05：第 5 层输出（= 被标记的第 4 层 down_proj 之后）位置 2 相对误差 **3.96**，位置 0（`<|im_start|>`）范数比 1.43×，其余位置范数 1.0；位置 2 = `system` 之后的 `\n`。ρ=5：位置 2 误差 0.25，位置 0 范数 0.86。Q14 的表达与 Llama/Mistral 不同：**sink 位置本身被改写，其余位置范数不膨胀**，但残差流末层 cos .65 vs .81、prompt top-1 一致率 .535 vs .632。
+  - Mistral ρ=0.5：第 2 层输出位置 4 起（186）与其余位置（119）一起爆炸，位置 0/1 完好。
+  - 三个崩塌的共同点：**损伤在前 2–5 个 block、起于 chat 模板 token / 首个分隔符**（Llama 的 `<|end_header_id|>`，Qwen 的首个 `\n`），这正是 Massive Activations（Sun et al. 2024, 2402.17762：LLaMA2-7B 的巨量激活在第 2 层突然出现，位于首 token 与首个 `.`/`\n`，充当 attention 的隐式 bias）与 attention sink 文献描述的 sink 形成位置。c4 原始文本**从不包含**这些模板 token，校准 Hessian 在这些方向上没有约束；层级目标是 token 平均，一个位置在几千个 token 里无法被看见（该位置的输入经 RMSNorm 后并不大，是输出巨大）。这把"校准过拟合"触发与"早期层 sink 损伤"表达连成了一条线，也解释了为什么 chat 校准（Hessian 覆盖模板 token）、damping（早期 MLP 退化为 RTN）和 AWQ/RTN（不补偿）都治愈。
+  - 修正 9.10i 的措辞："sink 位置（BOS）本身完好"仅对 Llama/Mistral 成立；应改为"损伤起于首个分隔符/模板 token 位置，随后（Llama/Mistral）其余位置范数膨胀，或（Q14）sink 位置被改写"。
+- Llama 早期修复为何失败：0–2 层与 0–5 层保护的都是**注意力**，未保护 MLP；逐位置数据指向 block 0–1（第 2 层输出已爆），候选凶器是 0–1 层的 MLP（down_proj 的 chat 目标比 0.24/0.17，补偿最强、被检测器最"放心"）。W36 直接测：0–1 / 0–3 层整块 RTN、0–1 层仅 down_proj RTN、0–3 层 MLP RTN、100 个未标记模块 RTN（补集）、0–1 层整块 fp16 上界。
+
+**单 BOS 对照（协议偏差）**
+
+| 臂 | 双 BOS（冻结协议）| 单 BOS |
+|---|---|---|
+| Llama fp16 | .768 | **.808** |
+| Llama GPTQ ρ=0.05 | .150 | .158 |
+
+- 生成管线让 tokenizer 在 chat 模板的 BOS 之上再加一个 BOS（Llama、Mistral 受影响；Qwen 模板无 BOS，不受影响）。修正后 fp16 基线 +4 点（.808，与 Meta 报告的 IFEval ≈80 一致），崩塌不变。排序与所有相对结论不受影响；论文 §协议 写明，附此表。所有 100+ 臂保持冻结协议不重跑。
+
+### 9.10k W36 裁决（2026-09-06）：Llama 闭合 —— 前两个 block 的两个 down_proj 改 RTN 即治愈（零比特）；检测器补集治愈、标记集不治愈；三个崩塌全部有零比特修复
+
+**Llama-3.1-8B（none .150，RTN 全 .565，damp5 .642，ultrachat .669，fp16 .768）**
+
+| 臂 | 模块数 | 额外比特 | IFEval | loop 率 |
+|---|---|---|---|---|
+| RTN block 0–1 全部 | 14 | 0 | .607 | .17 |
+| RTN block 0–3 全部 | 28 | 0 | .619 | |
+| **RTN block 0–1 仅 down_proj** | **2** | **0** | **.625** | .19（none .98）|
+| RTN block 0–3 MLP | 12 | 0 | .635 | |
+| RTN 100 个未标记模块（检测器补集）| 100 | 0 | .615 | |
+| fp16 block 0–1 全部 | 14 | 5.4% | .647 | |
+| fp16 block 0–3 MLP | 12 | 8.8% | .674 | |
+| （W35）RTN 124 个被标记模块 | 124 | 0 | .153 | |
+
+- **两个模块**（第 0、1 层 down_proj，≈0.7% 参数）改 RTN，IFEval 从 .150 到 .625，超过 RTN 全模型 6 点，与 damp5 打平（.642，CI 内）。fp16 上界 .647–.674 只再高 2–5 点：说明凶器就是这两个 down_proj 上的**补偿**，不是它们的精度。
+- **双重分离**：标记集（124）全 RTN → .153；补集（100）全 RTN → .615。层级 chat 目标在 Llama 上与病因**反相关**：block 0–1 down_proj 的比值 0.24/0.17 是全模型"补偿最成功"的模块。写作句："the layer-wise objective is not merely blind to the failure; on Llama it ranks the culprit modules as its best successes."
+- **逐位置分歧证实机制位置**：RTN block 0–1 后，第 2 层输出位置 4（`<|end_header_id|>`）相对误差 3.85 → 0.50，第 4 层其余位置范数比 3.26 → 0.94；末层 cos .17 → .66（damp5 .68），prompt top-1 一致率 .038 → .545（damp5 .628）。补集臂同。
+- **fp16 范数列（新）把治愈位置与 massive activation 对上了**：Llama fp16 的 BOS 残差范数在第 1 层输出 11.8、第 2 层输出 **531**（其余位置 1–5）—— massive activation 恰在 block 1 里形成，治愈模块就是 block 0–1 的 down_proj。注意：Llama 崩塌臂里 BOS 本身完好（误差 0.08），受损的是紧随模板头之后的 `<|end_header_id|>`（fp16 范数仅 1.3），所以措辞是"损伤起于 sink 形成 block 里的模板 token，并向全序列扩散"，**不是**"GPTQ 破坏了 massive activation"。
+- Q14 的对应关系更直接：fp16 位置 2（首个 `\n`）范数第 4 层输出 40 → 第 5 层 130 → 第 6 层 **4064**，massive activation 在 block 4–5 形成，被标记的 257× 模块就是 block 4 的 down_proj；单模块 RTN 后位置 2 误差 3.96 → 0.19，位置 0 范数比 1.43 → 1.04，末层 cos .65 → .80（damp5 .81），top-1 .535 → .630（.632）。复评 .749（首次 .751）。
+- **Mistral ρ=0.5**（none .173；ρ=0.05 .468；ρ=1e6≈RTN .409）：0–2 层 v/o fp16 .455（治愈；q/k 不治 → v/o 是必要项）；**RTN block 0–1 全部 .423（零比特治愈）**。
+- 三个崩塌、两种触发，全部有"前 1–2 个 block（或检测器指出的单模块）改 RTN"的零比特修复。与 CASIA"前几层高精度"的差异：我们不加比特，只去掉补偿，且给出为什么是这些 block（sink 形成）。
+- 未做（诚实项）：Llama 单模块（仅第 1 层或仅第 0 层 down_proj）；零比特修复臂的 GSM8K/MMLU/PPL；种子副本；"c4 包进 chat 模板"的最小校准测试（区分"见过模板 token"与"内容是对话"）。W37 补这几项后彻底冻结。
+
+### 9.10l W37 / W38 计划（2026-09-06 夜，同时提交；预注册读法）
+
+| 作业 | 臂 | 读法 |
+|---|---|---|
+| W37 冻结（8）| c4chat 校准 Llama/Q14；Llama 单模块（仅第 1 层 / 仅第 0 层 down_proj）；两模块修复种子副本 + GSM8K/MMLU/PPL；Q14 单模块 + GSM8K/MMLU/PPL；Mistral ρ=0.5 两 down_proj；Q7 两模块无害对照（.672）| c4chat 治愈 ⇒ 操作变量是"Hessian 见过模板 token"；单模块治愈 ⇒ 定位到 1 个模块；Q7 不降 ⇒ 规则可默认开 |
+| W38 影响力（11）| 位置目标统计（Llama、Q14、Mistral ρ=0.5；新列 obj_*_tpl / tplpos_ratio / lev_*）；Llama 4-bit 逐位置分歧 + 4-bit 两模块 RTN（4-bit none .745）；无害普查 Nemo / L3.2-3B / gemma-2-9b / Mistral v0.2；错模板对照 c4wrongchat Llama/Q14 | 位置目标在三个模型上标出凶器模块 ⇒ "检测 + 零比特修复"全自动流程，并量化 token 平均目标为何瞎（lev_tpl ≫ lev_ord = c4 Hessian 不约束模板方向）；4-bit 有亚阈值同签名且修复 +1–2 ⇒ 读者群扩到 4-bit；错模板不治愈 ⇒ 是本模型的特定 token |
+
+### 9.10m W37 + W38 裁决（2026-09-07）：模板 token 是操作变量；Llama 一个 down_proj 即治愈；4-bit 同签名且修复 +3.7 到 fp16 水平；位置统计三臂因钩子 bug 失败待重跑
+
+**校准最小检验（3-bit，IFEval avg4）**
+
+| 臂 | Llama（c4 .150）| Q14（c4 .412）|
+|---|---|---|
+| c4 原文包进**本模型** chat 模板（c4chat）| **.644** | **.772** |
+| c4 原文包进**外来**模板（Llama 用 ChatML 字符串；Q14 用 Llama-3 头字符串）| .162（不治）| .750（治）|
+| 参照：ultrachat | .669 | .772 |
+
+- 内容一字不改，只加模板 token 就治愈两个模型 —— "chat 校准治愈"的操作变量是**校准 Hessian 见过 sink 形成 token**，不是内容是对话。
+- 外来模板的不对称是更尖的证据：Llama 的 sink 形成 token 是它自己的特殊 token `<|end_header_id|>`，ChatML 字符串里没有 → 不治；Q14 的 sink 形成 token 是首个 `\n`，Llama-3 头字符串 `<|end_header_id|>\n\n` 在第 6 个 token 就提供了它 → 治。措辞："what must be in the calibration set is the token at which the model forms its sink, early in the sequence; for Qwen that is any early newline, for Llama it is a template-specific special token that raw text never contains."
+
+**Llama 单模块与下游（3-bit）**
+
+| 臂 | IFEval | GSM8K | MMLU | WikiText PPL |
+|---|---|---|---|---|
+| none | .150 | .002 | .561 | 59.2 |
+| RTN 仅第 1 层 down_proj（1 模块）| **.630** | | | |
+| RTN 仅第 0 层 down_proj（1 模块）| **.629** | | | |
+| RTN 第 0–1 层 down_proj，种子 1 | .650（种子 0 .625）| **.590** | **.568** | **10.04** |
+| damp5 | .642 | .583 | .533 | 23.0 |
+| AWQ | .597 | .425 | .504 | 12.1 |
+| fp16 | .768 | .843 | .683 | 7.22 |
+
+- **一个 down_proj**（第 0 层或第 1 层任一，0.35% 参数，零比特）即治愈；两模块种子副本 .650。下游全面优于 damp5 与 AWQ：PPL 10.0 是所有治愈臂里最好的（damp5 23.0，damp0.01 21.8 = HeRo-Q 报告值），MMLU 高出 damp5 3.5 点，GSM8K 持平。写作句："removing compensation from one early down_proj beats every global regulariser we tried on every metric."
+- Q14 单模块复评 .750（.751/.749/.750 三次）；GSM8K .890（damp5 .892）、MMLU .732（damp5 .745、none .735）、PPL 7.83（none 7.71）。Q14 的似然指标在 none 与治愈臂间几乎不动 —— C5 再次成立。
+- Mistral ρ=0.5 仅两个 down_proj：.188，不治；它的触发在注意力（v/o 必要，W36），与 Llama 的 MLP 触发不同。论文写"前 1–2 个 block 里、触发所在的子层"。
+
+**4-bit（Llama，g128）**
+
+| 臂 | IFEval | L2 位置 4 相对误差 | 位置 4 范数比 |
+|---|---|---|---|
+| GPTQ 4-bit none | .745 | 1.33 | 1.56× |
+| GPTQ 4-bit + RTN 第 0–1 层 down_proj | **.782** | | |
+| fp16 | .768 | | |
+| 3-bit none（参照）| .150 | 3.85 | — |
+
+- **同一签名在 4-bit 亚阈值存在**（`<|end_header_id|>` 位置误差 1.33、范数 1.56×，其余位置 1.05×，不扩散），两模块 RTN 使 4-bit IFEval +3.7，达到并略超 fp16（双 BOS 协议下 .768；差异在 CI 内）。这是本文对"大家真在用的档位"的直接贡献：在我们的协议下，4-bit GPTQ 的 Llama-3.1-8B-Instruct 有 2 点 IFEval 损失来自两个模块的补偿伪影。**诚实项**：packed gptqmodel 4-bit（W0，库默认 damping 0.1）已是 .776，说明不同配置本来就能避开一部分；4-bit 主张只在"同协议 v2 内 +3.7"层面写，并需种子副本与单模块臂（W39）。
+
+**零比特规则的无害普查（3-bit，两个 down_proj 改 RTN）**
+
+| 模型 | GPTQ none | +规则 | Δ |
+|---|---|---|---|
+| Mistral-Nemo-12B | .476 | **.525** | +4.9 |
+| Llama-3.2-3B | .577 | .600 | +2.3 |
+| Qwen2.5-7B | .672 | .663 | −0.9 |
+| gemma-2-9b | .725 | .712 | −1.3 |
+| Mistral-7B-v0.2 | .493 | .469 | −2.4 |
+
+- 不是"无害"，是"家族相关"：Llama/Nemo 系正向（Nemo 是优雅模型也 +5），gemma/Mistral-v0.2/Qwen 小幅负向（≤2.4，接近种子噪声 ±1–3）。论文不写"默认开"，写"检测器指出时开"；这也正是 W38 位置统计要给出的检测器。
+- W38 任务 1–3（位置目标统计）失败：forward_pre_hook 返回了元组导致参数被替换（`Linear.forward() takes 2 positional arguments but 3 were given`）。已修复，重跑。
+
+### 9.10n W38 位置统计 + W39 4-bit 裁决（2026-09-07）：逐位置目标把凶器排到第 1；token 平均目标 99.9% 是 BOS 一个 token；4-bit 增益在噪声边缘
+
+**逐位置目标（64 条 chat prompt 的位置 0–7，GPTQ/RTN 输出误差比；检测量 = 非 BOS 位置 2–7 上的最大比值）**
+
+| 模型 | 排名第 1 | 比值 | 已知凶器的排名 | 比值 >2 的模块数 |
+|---|---|---|---|---|
+| Llama ρ=0.05 | **第 1 层 down_proj** | **102**（位置 4 `<|end_header_id|>` 85，位置 5 `\n\n` 102）| L1 down_proj 第 1，L0 down_proj 第 4（3.6）| 4 / 224 |
+| Q14 ρ=0.05 | **第 4 层 down_proj** | **456**（位置 2 首个 `\n`）| 第 1 | 28 / 336（>3 的 8 个）|
+| Mistral ρ=0.5 | 第 1 层 down_proj | 5.1 | 真凶（0–2 层 v/o）排 63–219，比值 <1 | 1 / 224 |
+
+- **两个校准过拟合崩塌都被排到第 1**，而 token 平均的 chat 目标把 Llama 的凶器排到 221/224。同一个 Hessian、同一批输入，只是不对 token 取平均。
+- **为什么平均目标瞎，现在有数字**：Llama 第 1 层 down_proj 的输入范数在 BOS 位置 **481**、其余位置 1–2.5；Mistral 807 对 1；即 token 平均目标的 **99.9% 来自 BOS 这一个 token**（massive activation 的输入侧）。GPTQ 在那个位置赢 RTN 6 倍（比值 0.165），代价是在 `<|end_header_id|>` 输 85 倍、在 `\n\n` 输 102 倍、在普通位置 8–15 输 18 倍。写作句："at the sink-forming down_proj the layer-wise objective is one token; GPTQ optimises that token and sacrifices every other."
+- 与理论 brief 一致：补偿位移 ∝ (H+λI)⁻¹，误差被倒进低曲率方向；BOS 主导的 H 在模板 token 方向曲率≈0。chat 校准在这些方向加曲率（c4chat 治愈）、damping 在所有方向加 λ（ρ≥2 治愈）、RTN 不补偿。三种治愈是同一件事。
+- Q14 的差别：GPTQ 在 sink token（位置 2，输入范数 70，最大）本身就输 456 倍，所以 token 平均也看得见（257）。Llama 是"在 BOS 赢、在旁边的模板 token 输"，只有逐位置看得见。
+- **Mistral 的 act-order × damping 触发不被任何模块级目标检测**：它的凶器（0–2 层 v/o）在每个位置 GPTQ 都优于 RTN；检测器标的第 1 层 down_proj 改 RTN 不治（W37 .188）。论文写明：检测器覆盖触发 1（校准过拟合，2/2），不覆盖触发 2（1 例）；触发 2 的诊断只能靠逐位置分歧（量化后）。
+- 杠杆值 lev_tpl/lev_ord 不是干净的检测器（Llama 第 1 层 o_proj 7.7 排第 1，凶器 1.6–2.8），不入正文。
+
+**4-bit（g128，v2 协议）**
+
+| 模型 | none | +规则 | damp 0.1 | fp16 |
+|---|---|---|---|---|
+| Llama 种子 0 / 1 | .745 / .762 | .782 / .756（单模块 .757）| .765 | .768 |
+| Q14 | .794 | .814 | | .820 |
+| Nemo | .603 | .626 | | .651 |
+
+- Llama 种子噪声 ±1.7，W38 的 +3.7 是噪声上沿；三模型均值 **+1.5 / +2.0 / +2.3**，方向一致但各自在噪声内。4-bit 逐位置签名亚阈值存在（位置 4 误差 1.33、范数 1.56×）。写法：一段而非一节，"at 4-bit the same signature is present sub-threshold and the rule closes about a third of the remaining gap to fp16 on three models (+1.5 to +2.3, single seed)"。packed 4-bit .776 ≈ damp 0.1 .765，库默认 damping 解释了 packed 的优势。
+
+**W40（最后一批，预注册）**：检测器的前瞻检验 —— 对 5 个优雅模型跑逐位置统计，预测：Nemo 与 Llama-3.2-3B（规则 +4.9 / +2.3）应有比值 >2 的早期 down_proj，gemma-2-9b / Mistral-v0.2 / Q7（规则 −0.9 到 −2.4）应没有。成立 ⇒ "检测器指出时开"闭环；不成立 ⇒ 只写"崩塌态检测"。另加 Q14 / Nemo 4-bit 种子副本。
+
+### 9.10o W40 裁决（2026-09-07）：检测器前瞻检验 4/5 命中，一个假阳性（Mistral-v0.2）；4-bit 增益在 Q14 / Nemo 两个种子上稳定 +1.5–2.3
+
+**前瞻检验（检测量 = 早期 down_proj 在模板位置 2–7 上的最大 GPTQ/RTN 误差比；规则 = 该模块改 RTN 的 IFEval 变化，W38 已知）**
+
+| 模型 | 检测器最大值（模块）| 预测 | 规则实际 | 判定 |
+|---|---|---|---|---|
+| Llama-3.1-8B | **102**（L1 down_proj）| 响 | +47.5 | ✓ |
+| Qwen2.5-14B | **456**（L4 down_proj）| 响 | +33.9 | ✓ |
+| Mistral-Nemo-12B | **60**（L0 down_proj）| 响 | **+4.9** | ✓ |
+| Llama-3.2-3B | 4.7（L1 down_proj）| 弱响 | +2.3 | ✓ |
+| gemma-2-9b | 1.95（无 >2）| 静默 | −1.3 | ✓ |
+| Qwen2.5-7B | 3.1（L2 down_proj）| 弱响 | −0.9 | 噪声内，算静默 |
+| **Mistral-7B-v0.2** | **31**（L1 down_proj）| 响 | **−2.4** | **✗ 假阳性** |
+| Mistral-7B-v0.3 ρ=0.5 | 5.1（L1 down_proj）| 弱响 | −28（真凶在注意力）| 触发 2，已知盲区 |
+
+- 阈值 10：响的 4 个里 3 个受益（Llama、Q14、Nemo），Mistral-v0.2 不受益；静默的 3 个（L3.2-3B、gemma、Q7）里漏掉 L3.2-3B 的 +2.3。阈值 2：多抓到 L3.2-3B，多一个 Q7 的 −0.9。无论阈值，**恰好一个错**：Mistral-v0.2 的 L1 down_proj 在模板位置输 RTN 31 倍，但改 RTN 后 IFEval −2.4（种子噪声 ±1–3，未复评）。
+- 强度单调性：456 / 102 / 60 → +34 / +48 / +5；31 → −2.4 打破单调。解释候选（写作时二选一，都要诚实标注为推测）：(a) Mistral 模板的位置 2–7 是 `[INST]` 与正文词，不是 Llama/Qwen 那种形成 sink 的特殊 token，早期 down_proj 在这些位置的误差不进入 sink 通路；(b) −2.4 本身是噪声（W41 复评可判）。
+- BOS 支配是 Llama/Mistral 家族的结构：L1 down_proj 的 BOS 输入范数 Llama 481、L3.2-3B 634、Mistral-v0.2 819、v0.3 807；Nemo 在 L0（35）；gemma 没有（54 对 20–48，各位置同量级），Qwen 没有（Q14 的 sink 在 L4 down_proj 位置 2，范数 70）。检测器响的模型都有一个 BOS 或 sink 支配的早期 down_proj；gemma 没有 → 静默 → 规则无益。这条结构解释比"4/5 命中"更值得写。
+- **写法**：检测器是"崩塌态的定位器"（3/3 校准过拟合崩塌排第 1，含 Nemo 这种优雅但 +5 的中间态）；对优雅模型作为"是否值得开规则"的信号，4/5，有一个假阳性，明写。不写"自动流程零失误"。
+
+**4-bit 种子副本**
+
+| 模型 | none 种子 0 / 1 | +规则 种子 0 / 1 | Δ | fp16 |
+|---|---|---|---|---|
+| Q14 | .794 / .803 | .814 / .818 | **+2.0 / +1.5** | .820 |
+| Nemo | .603 / .615 | .626 / .630 | **+2.3 / +1.5** | .651 |
+| Llama | .745 / .762 | .782 / .756 | +3.7 / −0.6 | .768 |
+
+- Q14 与 Nemo 两个种子方向一致、幅度 +1.5 到 +2.3，Q14 到 fp16 只差 0.2–0.6；Llama 不稳。4-bit 一段话：同签名亚阈值存在，规则在 Q14 / Nemo 两种子稳定 +1.5–2.3、Llama 噪声内。
+- **W41（可选，4 臂，~2 h）**：Mistral-v0.2 与 Q7 的 none / 规则种子 1 副本 —— 判定假阳性是真是噪声。之后彻底冻结。
+
+### 9.10p W41 裁决（2026-09-07）：假阳性是"无效"不是"有害"；**实验冻结**
+
+| 模型 | none 种子 0 / 1 | +规则 种子 0 / 1 | Δ 种子 0 / 1 | 均值 |
+|---|---|---|---|---|
+| Mistral-7B-v0.2（检测器 31）| .493 / .507 | .469 / .500 | −2.4 / −0.7 | **−1.5** |
+| Qwen2.5-7B（检测器 3.1）| .672 / .655 | .663 / .689 | −0.9 / +3.4 | **+1.2** |
+
+- Mistral-v0.2 的假阳性复评为 −0.7，两种子均值 −1.5，在优雅模型的种子噪声（±1–3）内；loop 率 .13–.18 两臂相同。定性：检测器响、规则**无效**，不是有害。Q7 两种子均值 +1.2，同样是零附近。
+- **检测器的最终表述**：在它响的 5 个模型里（Llama 102、Q14 456、Nemo 60、Mistral-v0.2 31、L3.2-3B 4.7），规则是 +47.5 / +33.9 / +4.9 / −1.5 / +2.3 —— 3 个大赢、1 个小赢、1 个零，**没有一个受害**；在它静默的模型（gemma 1.95）规则 −1.3。写作句："wherever the detector fires the zero-bit rule is safe: a large gain in the two collapses and Nemo, neutral on Mistral-v0.2; it never fires on gemma, where the rule would not help." 假阳性仍明写为限制：强度 31 却零收益说明"模块级损伤"到"生成崩塌"之间还有一个我们没有量化的传播条件（Mistral 模板位置 2–7 是正文词，不是 sink token，是首选解释）。
+- 全部批次 W20–W41 回收完毕。**实验冻结（2026-09-07）**，剩余工作全部是写作；摘要 9/18，全文 9/25 AoE。
+- 冻结时的诚实项汇总（写作直接用）：自然崩塌 n=2 + 诱导 1（Mistral 触发 2）；仅 GPTQ 家族 3-bit（4-bit 一段）；fake-quant；IFEval 为主（GSM8K/MMLU/PPL 只在治愈臂）；双 BOS 协议（附单 BOS 对照）；检测器不覆盖触发 2；假阳性 1；无害普查是家族相关；packed 仅复现；≤32B。
+
+### 9.11 论文主张终版草案（2026-09-06 更新，与 §0 一致）
+
+- **C1** 3-bit GPTQ 存在补偿崩塌模式，17 模型中 2 个，不可从 fp16 统计量预测；Mistral 在 act-order × 中等 damping 下复现同一表达（第三个触发实例）。
+- **C2** 崩塌是**校准集过拟合**：补偿把层级最小二乘拟合到不迁移的校准 Hessian 上。证据：OOD 语料致崩、chat 校准治愈、岭正则（damping）治愈、无补偿量化器免疫、优雅模型无法诱导。
+- **C3** 损伤起于早期 block 的 chat 模板 token（sink 形成位置）；把那 1–2 个 block 的 down_proj（Llama）/ 检测器指出的单模块（Q14）/ block 0–1（Mistral）改 RTN 即零比特治愈；逐位置分歧是 32 条 prompt 即可测得的签名。
+- **C4** 层级目标不是定位器（Llama 双重分离）；"保护显著权重"的价值 = 正则化的价值：崩塌态与 damp5 打平，优雅态与 4-bit 无增益；定位 ≠ 保护。
 - **C5** 似然指标探不到崩塌，且崩塌有循环与拒答两种表型；一次 RTN 对照或 50 条生成探针即可检出。damp 0.01 臂 PPL 21.8 / IFEval .128 = HeRo-Q 报告的 PPL 20.13 的另一面。
 
 （原 W28 计划文字见下）
@@ -615,6 +968,8 @@ Llama damping {2,3,10,20,50}、Q14 {0.1,20,100}、Q7 {5,20}（优雅态 damping 
 - fake-quant 无部署内核；AWQ 臂是 per-linear 缩放 + RTN、无 clip 搜索（协议偏差写明）；崩塌仅 GPTQ 家族；≤32B。
 - Multi-IF / GSM8K 的 Qwen "gptq3" 参照有 packed 与 v2 两版（IFEval 差 ~1；GSM8K 已补 v2none 0.7779，Multi-IF v2none t1 0.6326 ≈ packed 0.6381）。
 - Mistral IF 基线本身低（0.552），属模型能力。
+- 双 BOS 协议偏差（§1、§9.10j）：Llama fp16 基线因此低 4 点（.768 vs 单 BOS .808）；崩塌不受影响；正文写明，附单 BOS 对照表，不重跑。
+- Llama 机制未完全闭合前不写"定位修复"为通用主张：截至 W35，Llama 无 ≤12 模块 / ≤6 层注意力的局部修复；检测器标记的模块换 RTN 不治愈。若 W36 的早期 block RTN 也失败，论文写"分布式失败（Llama）vs 局部失败（Q14、Mistral）"。
 - 24B/32B 只有 regime 检查臂（none）。
 - heads 排序来自因果 ablation dev 集；act ≈ dev3（ρ=0.94，dev 排序受激活尺度混淆，最终以因果消融为准）。
 - detect_super_weights 在 Qwen 上有归因 bug（未用于任何最终主张；Llama 检出正常并被 sw_only 臂消费）。
@@ -698,9 +1053,22 @@ Llama damping {2,3,10,20,50}、Q14 {0.1,20,100}、Q7 {5,20}（优雅态 damping 
 - Which Quantization Should I Use? llama.cpp on Llama-3.1-8B-Instruct（IFEval 描述性）— https://arxiv.org/abs/2601.14277
 - Quantization Damage Is Multiplicative — https://arxiv.org/abs/2608.06564
 
+- ★ The Structure of Quantization Damage in LLMs（2026-09）— https://arxiv.org/abs/2609.01587
+- ★ UPQ: Unifying Block-wise PTQ and Distillation-based QAT for 2-bit Instruction-Tuned LLMs — https://arxiv.org/abs/2506.09104
+- ★ Quantization of instruction-tuned LLMs, Leaderboard-v2 incl. IFEval — https://arxiv.org/abs/2409.11055
+- ★ RSQ: Learning from Important Tokens Leads to Better Quantized LLMs — https://arxiv.org/abs/2503.01820
+- ★ Massive Spikes in LLMs are Bias Vectors / InsertQuant — https://arxiv.org/abs/2606.02288
+- ★ CushionCache: Prefixing Attention Sinks — https://arxiv.org/abs/2406.12016
+- ★ OASIS: Attention Sinks and Outliers in Attention Residuals — https://arxiv.org/abs/2605.17887
+- ★ ResComp: Rethinking Residual Errors in Compensation-based Quantization — https://arxiv.org/abs/2604.07955
+- Cross-Layer Error Compensation for Extreme Low-Bit Quantization — https://arxiv.org/abs/2607.14630
+- Secondary Attention Sinks — https://arxiv.org/abs/2512.22213
+- Attention Sinks Induce Gradient Sinks — https://arxiv.org/abs/2603.17771
+
 ### B.3 非论文来源
 - GPTQModel issue #1278（3-bit 回归，我们早期 checkpoint 的 bug 出处）— https://github.com/ModelCloud/GPTQModel/issues/1278
 - 实践者报告 "Avoid Quantizing Llama 3 8B with GPTQ" — https://medium.com/data-science/quantize-llama-3-8b-with-bitsandbytes-to-preserve-its-accuracy-e84283b233f7
+- llm-compressor 文档（"instruct 模型用 chat 模板校准"的社区常识出处）— https://docs.vllm.ai/projects/llm-compressor/en/latest/examples/quantization_w4a16/
 - STORM（写作方法论，不入文）— https://arxiv.org/abs/2402.14207 ，代码 https://github.com/stanford-oval/storm
 
 ### B.4 数学合作者的起点包

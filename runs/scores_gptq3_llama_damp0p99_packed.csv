@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gptq3_llama_damp0p99_packed,0.1072,0.2254,0.1091,0.2302,0.168

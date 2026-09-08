@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/mistral-nemo-12b-v2gptq4-rtn01down
+heads=[]
+n=0

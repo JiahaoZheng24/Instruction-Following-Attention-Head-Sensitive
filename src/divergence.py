@@ -54,6 +54,9 @@ def main():
     ap.add_argument("--n", type=int, default=32)
     ap.add_argument("--max-len", type=int, default=1024)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--per-position", action="store_true",
+                    help="also write <out>.pos.csv: rel_err at positions 0..7 and mean of the rest, "
+                         "per layer (is the damage at the BOS / attention-sink position?)")
     args = ap.parse_args()
 
     rows = [json.loads(l) for l in open(args.prompts, encoding="utf-8")][: args.n]
@@ -62,6 +65,8 @@ def main():
     tok0 = AutoTokenizer.from_pretrained(args.fp16)
     texts = [chat(tok0, r.get("prompt") or r["text"]) for r in rows]
 
+    ids0 = tok0(texts[0], truncation=True, max_length=args.max_len)["input_ids"]
+    print(f"[divergence] prompt-0 tokens at positions 0..9: {tok0.convert_ids_to_tokens(ids0[:10])}")
     hs_fp, lg_fp, _ = collect(args.fp16, tok0, texts, args.max_len)
     hs_q, lg_q, _ = collect(args.quant, tok0, texts, args.max_len)
 
@@ -77,6 +82,30 @@ def main():
             acc[l]["cos_last"].append(float(cos[-1]))
             acc[l]["rel"].append(float(((x - y).norm(dim=-1) / x.norm(dim=-1).clamp(min=1e-6)).mean()))
 
+    if args.per_position:
+        P = 8
+        with open(args.out.replace(".csv", "") + ".pos.csv", "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["layer"] + [f"rel_err_pos{i}" for i in range(P)] + ["rel_err_rest"]
+                       + [f"norm_ratio_pos{i}" for i in range(P)] + ["norm_ratio_rest"]
+                       + [f"fp16_norm_pos{i}" for i in range(P)] + ["fp16_norm_rest"])
+            for l in range(n_layers):
+                per = [[] for _ in range(P)]; nrp = [[] for _ in range(P)]; fnp = [[] for _ in range(P)]
+                rest = []; nrr = []; fnr = []
+                for a, b in zip(hs_fp, hs_q):
+                    x, y = a[l], b[l]
+                    xn = x.norm(dim=-1)
+                    re = (x - y).norm(dim=-1) / xn.clamp(min=1e-6)
+                    nr = y.norm(dim=-1) / xn.clamp(min=1e-6)
+                    for i in range(min(P, x.shape[0])):
+                        per[i].append(float(re[i])); nrp[i].append(float(nr[i])); fnp[i].append(float(xn[i]))
+                    if x.shape[0] > P:
+                        rest.append(float(re[P:].mean())); nrr.append(float(nr[P:].mean())); fnr.append(float(xn[P:].mean()))
+                m = lambda v, d=4: round(sum(v) / len(v), d) if v else ""  # noqa: E731
+                w.writerow([l] + [m(v) for v in per] + [m(rest)]
+                           + [m(v, 3) for v in nrp] + [m(nrr, 3)]
+                           + [m(v, 1) for v in fnp] + [m(fnr, 1)])
+        print(f"[divergence] per-position -> {args.out.replace('.csv', '')}.pos.csv")
     with open(args.out, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["layer", "cos_mean", "cos_last", "rel_err", "top1_agree_prompt"])

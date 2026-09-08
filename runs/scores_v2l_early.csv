@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2l_early,0.1035,0.2038,0.1109,0.2146,0.1582

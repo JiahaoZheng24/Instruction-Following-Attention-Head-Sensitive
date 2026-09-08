@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gptaq3_llama,0.098,0.1894,0.1072,0.205,0.1499

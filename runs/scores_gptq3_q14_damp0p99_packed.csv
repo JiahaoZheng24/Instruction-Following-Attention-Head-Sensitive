@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gptq3_q14_damp0p99_packed,0.7172,0.7926,0.7486,0.8165,0.7687

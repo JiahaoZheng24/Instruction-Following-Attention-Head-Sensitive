@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2q32_damp5,0.7431,0.8129,0.7726,0.8393,0.792
