@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2nemo4_tnorm,0.5268,0.6427,0.5749,0.6847,0.6073

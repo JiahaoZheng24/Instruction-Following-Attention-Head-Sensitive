@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2m_damp0p5_tnorm,0.3235,0.4496,0.3567,0.4856,0.4039

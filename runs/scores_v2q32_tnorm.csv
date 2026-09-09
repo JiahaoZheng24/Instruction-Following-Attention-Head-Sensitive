@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2q32_tnorm,0.7597,0.8297,0.7856,0.8501,0.8063

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2q32_l5down_rtn,0.7505,0.8189,0.7856,0.8489,0.801

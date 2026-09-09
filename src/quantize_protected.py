@@ -199,7 +199,8 @@ STATS_COLS = ["layer", "proj", "quantizer", "rows", "cols", "n_dead_cols",
               "awq_alpha", "obj_awq", "obj_awq_alt", "protected",
               # W38 position-resolved objective (template positions 0..7 of chat prompts)
               "obj_gptq_tpl", "obj_rtn_tpl", "obj_gptq_ord", "obj_rtn_ord", "tplpos_ratio",
-              "lev_tpl", "lev_ord", "levpos", "xnorm_tpl", "xnorm_ord", "xnormpos"]
+              "lev_tpl", "lev_ord", "levpos", "xnorm_tpl", "xnorm_ord", "xnormpos",
+              "tplpos_err_gptq", "tplpos_err_rtn"]
 
 
 def main():
@@ -224,6 +225,12 @@ def main():
                          "obj_gptq_alt/obj_rtn_alt exceeds --rtn-threshold are quantized with RTN")
     ap.add_argument("--rtn-threshold", type=float, default=1.0)
     ap.add_argument("--rtn-topk", type=int, default=0, help="if >0, only the k worst modules by that ratio")
+    ap.add_argument("--hess-token-norm", action="store_true",
+                    help="W42: token-normalised calibration Hessian (each token weighted equally)")
+    ap.add_argument("--hess-token-cap", type=float, default=0.0,
+                    help="W46: cap any calibration token's norm at K x rms in the Hessian (soft token-norm)")
+    ap.add_argument("--hess-drop-pos", type=int, default=0,
+                    help="W42: exclude the first K positions of each calibration sample from H")
     ap.add_argument("--rtn-invert", action="store_true",
                     help="with --rtn-from-stats: RTN the modules NOT selected (complement set)")
     ap.add_argument("--modules",
@@ -416,6 +423,10 @@ def main():
             mods = {p: getattr(layer.self_attn, p) for p in ATTN}
             mods.update({p: getattr(layer.mlp, p) for p in MLP})
             gptq = {p: MaskedGPTQ(m, name=f"layers.{li}.{p}") for p, m in mods.items()}
+            for g in gptq.values():
+                g.token_norm = args.hess_token_norm
+                g.drop_pos = args.hess_drop_pos
+                g.token_cap = args.hess_token_cap
             handles = [m.register_forward_pre_hook(
                 (lambda g: lambda _m, a: g.add_batch(a[0]))(gptq[p]))
                 for p, m in mods.items()]
@@ -511,6 +522,7 @@ def protocol(args, ctx):
             "topk_from": args.topk_from, "k": args.k, "modules": args.modules,
             "rtn_modules": ctx.get("rtn_modules"), "rtn_from_stats": args.rtn_from_stats,
             "rtn_threshold": args.rtn_threshold, "rtn_topk": args.rtn_topk, "rtn_invert": args.rtn_invert,
+            "hess_token_norm": args.hess_token_norm, "hess_drop_pos": args.hess_drop_pos, "hess_token_cap": args.hess_token_cap,
             "kv": args.kv, "projs": args.projs, "seed": args.seed,
             "calib_seed": args.calib_seed, "coords_file": args.coords_file,
             "rotate": args.rotate,

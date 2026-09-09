@@ -147,6 +147,18 @@ class MaskedGPTQ:
         self.X_tpl: list = []
         self.X_ord: list = []
         self.P = 8
+        # W42: objective repairs derived from the mechanism. token_norm: every
+        # calibration token contributes equally to H (x_t / ||x_t|| * rms), so
+        # the BOS / sink token can no longer dominate the sink-forming layers.
+        # drop_pos: leave the first K positions of every calibration sample
+        # out of H (BOS exclusion ablation). Both apply to H only, never to
+        # the diagnostic Hessians (H_alt, X_tpl).
+        self.token_norm = False
+        self.drop_pos = 0
+        # W46: soft variant — only tokens whose norm exceeds token_cap * rms are
+        # scaled down to that ceiling; ordinary tokens are untouched. Keeps the
+        # BOS / sink token in the objective but bounds its dominance.
+        self.token_cap = 0.0
 
     @torch.no_grad()
     def _accum(self, H, n_prev, inp):
@@ -161,6 +173,22 @@ class MaskedGPTQ:
     @torch.no_grad()
     def add_batch(self, inp: torch.Tensor):
         """inp: [..., columns] input activations of this linear."""
+        if self.drop_pos > 0 and inp.dim() >= 2 and inp.shape[-2] > self.drop_pos:
+            inp = inp[..., self.drop_pos:, :]
+        if self.token_norm:
+            x = inp.reshape(-1, self.columns).float()
+            n = x.norm(dim=1, keepdim=True)
+            rms = (n ** 2).mean().sqrt()
+            inp = x * (rms / n.clamp(min=1e-6))
+        elif self.token_cap > 0:
+            # W47: cap relative to the MEDIAN token norm. (W46 used the rms,
+            # which is itself dominated by the BOS token: at Llama layer-1
+            # down_proj rms ~ 10.7 with BOS 481 and typical tokens ~1, so a
+            # "10x" cap left BOS at ~107x typical -- still dominant.)
+            x = inp.reshape(-1, self.columns).float()
+            n = x.norm(dim=1, keepdim=True)
+            med = n.median()
+            inp = x * (self.token_cap * med / n.clamp(min=1e-6)).clamp(max=1.0)
         self.nsamples = self._accum(self.H, self.nsamples, inp)
 
     @torch.no_grad()
@@ -392,6 +420,11 @@ class MaskedGPTQ:
         eg = ((Xt @ d_g.t()) ** 2).sum(1).view(-1, P).mean(0)
         er = ((Xt @ d_r.t()) ** 2).sum(1).view(-1, P).mean(0)
         stats["tplpos_ratio"] = ",".join(f"{float(a / b.clamp(min=1e-12)):.3f}" for a, b in zip(eg, er))
+        # W49: absolute per-position output errors (RMS over rows), so that the
+        # linear-layer prediction delta*R can be compared across bit-widths,
+        # group sizes, damping and Hessian re-weighting.
+        stats["tplpos_err_gptq"] = ",".join(f"{float(a.sqrt()):.4g}" for a in eg)
+        stats["tplpos_err_rtn"] = ",".join(f"{float(b.sqrt()):.4g}" for b in er)
         try:
             Hd = Hraw.clone()
             idx = torch.arange(self.columns, device=self.dev)
