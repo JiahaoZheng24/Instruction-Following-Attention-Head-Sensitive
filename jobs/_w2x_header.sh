@@ -17,6 +17,7 @@ source jobs/hf.env 2>/dev/null || source "$BASE_DIR/jobs/hf.env"
 export HF_HUB_ENABLE_HF_TRANSFER=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 cd "$BASE_DIR"
+mkdir -p runs/protocols runs/stats logs   # runs/ may have been deleted on the cluster; every job recreates what it needs
 
 # Orphan guard: on qdel (SIGTERM/SIGKILL to the job shell), on timeout, or on
 # normal exit, kill every child of this shell so no python/CUDA process can

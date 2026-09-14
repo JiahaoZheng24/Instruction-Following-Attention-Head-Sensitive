@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2l32_bos10,0.3956,0.542,0.4436,0.5887,0.4925

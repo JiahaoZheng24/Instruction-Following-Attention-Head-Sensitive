@@ -1,0 +1,2 @@
+model=mistralai/Mistral-7B-Instruct-v0.3
+inject layer=1 beta=4.0 pos=2-7 n_injected=3246

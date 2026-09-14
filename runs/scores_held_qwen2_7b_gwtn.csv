@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+held_qwen2_7b_gwtn,0.4288,0.542,0.4621,0.5767,0.5024

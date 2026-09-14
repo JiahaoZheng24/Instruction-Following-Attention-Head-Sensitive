@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+u4_qwen3_14b_gptq4,0.3789,0.5324,0.4104,0.56,0.4704

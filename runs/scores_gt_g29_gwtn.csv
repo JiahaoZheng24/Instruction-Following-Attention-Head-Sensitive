@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gt_g29_gwtn,0.6433,0.7374,0.6617,0.7542,0.6991

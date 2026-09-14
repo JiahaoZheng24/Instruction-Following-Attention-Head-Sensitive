@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_tulu3_8b_gptq3,0.6654,0.7626,0.6913,0.7818,0.7253

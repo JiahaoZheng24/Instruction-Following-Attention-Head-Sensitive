@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+h_qwen3_14b_damp0p01,0.39,0.5276,0.4473,0.5731,0.4845

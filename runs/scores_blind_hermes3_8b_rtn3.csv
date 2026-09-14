@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_hermes3_8b_rtn3,0.2736,0.3753,0.2957,0.4113,0.339

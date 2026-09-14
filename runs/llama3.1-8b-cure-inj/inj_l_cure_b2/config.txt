@@ -1,0 +1,2 @@
+model=/store01/yshi4/jzheng7/models/llama3.1-8b-cure-inj
+inject layer=1 beta=2.0 pos=2-7 n_injected=3246

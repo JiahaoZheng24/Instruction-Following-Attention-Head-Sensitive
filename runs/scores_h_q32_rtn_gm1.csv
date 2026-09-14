@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+h_q32_rtn_gm1,0.1109,0.2266,0.122,0.241,0.1751

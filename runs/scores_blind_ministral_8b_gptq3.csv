@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_ministral_8b_gptq3,0.4547,0.5612,0.4824,0.5851,0.5209

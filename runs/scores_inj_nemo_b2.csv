@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+inj_nemo_b2,0.5342,0.6439,0.5896,0.6918,0.6149

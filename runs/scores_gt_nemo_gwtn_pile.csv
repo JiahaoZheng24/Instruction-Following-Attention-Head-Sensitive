@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gt_nemo_gwtn_pile,0.427,0.5432,0.4787,0.5899,0.5097

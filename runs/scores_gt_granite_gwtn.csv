@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gt_granite_gwtn,0.4972,0.6091,0.5416,0.6499,0.5745

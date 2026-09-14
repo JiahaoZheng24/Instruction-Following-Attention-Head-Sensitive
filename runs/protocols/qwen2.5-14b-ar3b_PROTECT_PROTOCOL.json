@@ -1,0 +1,16 @@
+{
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "bits": 3,
+  "group_size": 128,
+  "quantizer": "autoround",
+  "sym": true,
+  "iters": 200,
+  "calib": "c4 x128 (same loader/truncation as GPTQ arms; variable length, min 48 / mean 426 / max 2048 tokens; batch 1)",
+  "n_calib": 128,
+  "seqlen": 2048,
+  "ar_seqlen": 48,
+  "protect": "none",
+  "selected_params": 0,
+  "saved_via": "save_quantized(format=fake)",
+  "format": "fake-quant fp checkpoint"
+}

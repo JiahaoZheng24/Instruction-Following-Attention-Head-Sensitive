@@ -123,6 +123,34 @@ def build_mask_for(module, layer_idx, proj, args, ctx, gptq=None):
             ctx["selected"] += int(m.sum())
             return m
         return None
+    if args.protect == "spqr":
+        # W56: SpQR-style outlier isolation. Per-weight OBS saliency of the
+        # RTN rounding error under the (damped) calibration Hessian,
+        #   s_ij = (w_ij - rtn(w_ij))^2 / [H^-1]_jj ,
+        # top fraction kept fp16 (in-loop exemption, excluded from the group
+        # scale with --scale-excl-mask, as SpQR does). Pre-registered
+        # prediction (RESULTS 9.10af): in the collinear BOS block [H^-1]_jj is
+        # LARGE, so these weights look cheap to round and are NOT isolated;
+        # the trade survives and Llama/Q14 stay collapsed.
+        assert gptq is not None and gptq.H is not None, "spqr needs the Hessian"
+        from gptq_core import rtn_grouped
+        with torch.no_grad():
+            Wf = W.detach().float()
+            H = gptq.H.clone()
+            dead = torch.diag(H) == 0
+            H[dead, dead] = 1.0
+            H.diagonal().add_(args.percdamp * torch.mean(torch.diag(H)))
+            Hinv_diag = torch.diag(torch.cholesky_inverse(torch.linalg.cholesky(H))).clamp(min=1e-12)
+            Q, _ = rtn_grouped(Wf, args.bits, args.group_size, not args.asym)
+            score = ((Wf - Q) ** 2 / Hinv_diag.unsqueeze(0)).flatten()
+            k = int(round(ctx["frac"] * score.numel()))
+            m = torch.zeros(score.numel(), dtype=torch.bool, device=score.device)
+            if k > 0:
+                m[torch.topk(score, k).indices] = True
+            m = m.view(W.shape).cpu()
+            del H, Q
+        ctx["selected"] += int(m.sum())
+        return m
     if args.protect == "hmag":
         assert gptq is not None and gptq.H is not None, "hmag needs the Hessian"
         with torch.no_grad():
@@ -200,7 +228,12 @@ STATS_COLS = ["layer", "proj", "quantizer", "rows", "cols", "n_dead_cols",
               # W38 position-resolved objective (template positions 0..7 of chat prompts)
               "obj_gptq_tpl", "obj_rtn_tpl", "obj_gptq_ord", "obj_rtn_ord", "tplpos_ratio",
               "lev_tpl", "lev_ord", "levpos", "xnorm_tpl", "xnorm_ord", "xnormpos",
-              "tplpos_err_gptq", "tplpos_err_rtn"]
+              "tplpos_err_gptq", "tplpos_err_rtn",
+              "p4_toprow_gptq", "p4_toprow_share_gptq", "p4_toprow_rtn", "p4_toprow_share_rtn",
+              "p4_topcols", "p4_topcols_share_gptq",
+              "p4_topcols_zero_gptq", "p4_topcols_zero_rtn", "p4_topcols_wnorm", "p4_topcols_x",
+              "p4_toprow_w", "p4_toprow_qg", "p4_toprow_qr", "p4_toprow_maxw", "p4_toprow_maxqg",
+              "p4_toprow_nclip", "p4_toprow_err_g", "p4_toprow_err_r"]
 
 
 def main():
@@ -213,7 +246,7 @@ def main():
     ap.add_argument("--seqlen", type=int, default=2048)
     ap.add_argument("--out", required=True)
     ap.add_argument("--protect",
-                    choices=["none", "heads", "tacq", "randw", "coords", "cols", "hmag", "modules"],
+                    choices=["none", "heads", "tacq", "randw", "coords", "cols", "hmag", "modules", "spqr"],
                     required=True)
     ap.add_argument("--no-actorder", action="store_true",
                     help="GPTQ without desc_act ordering (compensation-order probe)")
@@ -229,6 +262,18 @@ def main():
                     help="W42: token-normalised calibration Hessian (each token weighted equally)")
     ap.add_argument("--hess-token-cap", type=float, default=0.0,
                     help="W46: cap any calibration token's norm at K x rms in the Hessian (soft token-norm)")
+    ap.add_argument("--hess-bos-scale", type=float, default=1.0,
+                    help="W54: multiply the BOS (first) position of every calibration sample by this factor before it enters H")
+    ap.add_argument("--hess-grad-weight", action="store_true",
+                    help="W60: weight every calibration token in H by its output-side sensitivity "
+                         "||dL/dy_t||^2 (normalised to mean 1; one backward pass per sample on the "
+                         "un-quantised model). tnorm is the special case w_t = 1/||x_t||^2.")
+    ap.add_argument("--hess-grad-power", type=float, default=1.0,
+                    help="W60: w_t = g_t^power (1 = Fisher, 0.5 = softer)")
+    ap.add_argument("--hess-grad-floor", type=float, default=0.0,
+                    help="W60: clamp w_t below at this fraction of the mean (0 = none)")
+    ap.add_argument("--hess-grad-cap", type=float, default=0.0,
+                    help="W61: clamp w_t above at this multiple of the median token weight (0 = none)")
     ap.add_argument("--hess-drop-pos", type=int, default=0,
                     help="W42: exclude the first K positions of each calibration sample from H")
     ap.add_argument("--rtn-invert", action="store_true",
@@ -246,10 +291,12 @@ def main():
     # tacq / randw / hmag modes
     ap.add_argument("--salience-dir")
     ap.add_argument("--budget-params", type=int, default=37_624_064)
+    ap.add_argument("--frac", type=float, default=0.0,
+                    help="W56: per-module protected fraction for randw/hmag/spqr (overrides --budget-params when > 0)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--calib-seed", type=int, default=0,
                     help="disjoint calib replicate (for error bars)")
-    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext", "ultrachat", "c4chat", "c4wrongchat"], default="c4",
+    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext", "ultrachat", "c4chat", "c4wrongchat", "c4win", "pile"], default="c4",
                     help="calibration corpus (frozen protocol = c4)")
     # quantizer family
     ap.add_argument("--quantizer", choices=["gptq", "rtn", "awq"], default="gptq")
@@ -305,10 +352,11 @@ def main():
         from common import safe_quantile
         ctx["threshold"] = safe_quantile(sample, q)
         print(f"[v2] tacq threshold={ctx['threshold']:.3e} (target q={q:.5f})")
-    elif args.protect in ("randw", "hmag"):
-        ctx["frac"] = args.budget_params / total_lin
-        if args.protect == "hmag":
-            assert args.quantizer != "rtn", "hmag needs a calibration Hessian (gptq/awq)"
+    elif args.protect in ("randw", "hmag", "spqr"):
+        ctx["frac"] = args.frac if args.frac > 0 else args.budget_params / total_lin
+        if args.protect in ("hmag", "spqr"):
+            assert args.quantizer != "rtn", f"{args.protect} needs a calibration Hessian (gptq/awq)"
+        print(f"[v2] {args.protect}: per-module protected fraction {ctx['frac']:.5f}")
     elif args.protect == "cols":
         # whole input-channel columns, greedily by captured-salience density,
         # until the param budget is filled -> hardware-friendly (OWQ storage)
@@ -409,6 +457,17 @@ def main():
 
     # ------------------------------------------------------- GPTQ / AWQ
     calib = load_calib(args.calib, tok, args.n_calib, args.seqlen, seed=args.calib_seed)
+    gw = None
+    if args.hess_grad_weight:
+        from grad_weights import collect_token_sides, grad_weights
+        print(f"[v2] W60: output-side token weights ({len(calib)} samples, one backward each)", flush=True)
+        _, gout = collect_token_sides(model, tok, calib, args.seqlen)
+        gw = grad_weights(gout, power=args.hess_grad_power, floor=args.hess_grad_floor, cap=args.hess_grad_cap)
+        k0 = (1, "down_proj") if (1, "down_proj") in gw else next(iter(gw))
+        w0 = torch.cat(gw[k0])
+        print(f"[v2] W60: {k0} weights: BOS mean {torch.stack([w[0] for w in gw[k0]]).mean():.3g}, "
+              f"median {w0.median():.3g}, max {w0.max():.3g}, min {w0.min():.3g}", flush=True)
+        del gout
     print(f"[v2] capturing layer-0 inputs ({len(calib)} {args.calib} samples)")
     inps, kws = capture_layer0_inputs(model, tok, calib, args.seqlen)
     inps_alt, kws_alt = [], []
@@ -427,11 +486,17 @@ def main():
                 g.token_norm = args.hess_token_norm
                 g.drop_pos = args.hess_drop_pos
                 g.token_cap = args.hess_token_cap
+                g.bos_scale = args.hess_bos_scale
             handles = [m.register_forward_pre_hook(
                 (lambda g: lambda _m, a: g.add_batch(a[0]))(gptq[p]))
                 for p, m in mods.items()]
             for j in range(len(inps)):
+                if gw is not None:
+                    for p, g in gptq.items():
+                        g.token_w = gw[(li, p)][j]
                 layer(inps[j], **kws[j])
+            for g in gptq.values():
+                g.token_w = None
             for h in handles:
                 h.remove()
             if inps_alt:
@@ -517,12 +582,13 @@ def protocol(args, ctx):
             "scale_excl_mask": args.scale_excl_mask,
             "calib": None if args.quantizer == "rtn" else args.calib,
             "n_calib": args.n_calib,
-            "protect": args.protect, "budget_params": args.budget_params,
+            "protect": args.protect, "budget_params": args.budget_params, "frac": args.frac,
             "selected_params": ctx["selected"],
             "topk_from": args.topk_from, "k": args.k, "modules": args.modules,
             "rtn_modules": ctx.get("rtn_modules"), "rtn_from_stats": args.rtn_from_stats,
             "rtn_threshold": args.rtn_threshold, "rtn_topk": args.rtn_topk, "rtn_invert": args.rtn_invert,
-            "hess_token_norm": args.hess_token_norm, "hess_drop_pos": args.hess_drop_pos, "hess_token_cap": args.hess_token_cap,
+            "hess_token_norm": args.hess_token_norm, "hess_drop_pos": args.hess_drop_pos, "hess_token_cap": args.hess_token_cap, "hess_bos_scale": args.hess_bos_scale,
+            "hess_grad_weight": args.hess_grad_weight, "hess_grad_power": args.hess_grad_power, "hess_grad_floor": args.hess_grad_floor, "hess_grad_cap": args.hess_grad_cap,
             "kv": args.kv, "projs": args.projs, "seed": args.seed,
             "calib_seed": args.calib_seed, "coords_file": args.coords_file,
             "rotate": args.rotate,

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+u4_m7_gptq4,0.3623,0.494,0.4067,0.5384,0.4503

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_mistral_7b_v01_rtn3,0.3641,0.4604,0.3993,0.4964,0.4301

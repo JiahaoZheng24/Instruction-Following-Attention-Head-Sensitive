@@ -1,0 +1,2 @@
+model=google/gemma-2-9b-it
+inject layer=1 beta=4.0 pos=2-7 n_injected=3246

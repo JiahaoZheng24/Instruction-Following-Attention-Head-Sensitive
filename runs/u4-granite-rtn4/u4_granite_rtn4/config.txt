@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/u4-granite-rtn4
+heads=[]
+n=0

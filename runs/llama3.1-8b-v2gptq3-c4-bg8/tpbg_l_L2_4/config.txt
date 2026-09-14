@@ -1,0 +1,3 @@
+target=/store01/yshi4/jzheng7/models/llama3.1-8b-v2gptq3-c4-bg8
+donor=/store01/yshi4/jzheng7/models/llama3.1-8b-v2gptq3-c4win-bgd8
+layers=2-4 proj=all

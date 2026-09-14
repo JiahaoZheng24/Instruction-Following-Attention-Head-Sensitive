@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+inj_hermes3_b1,0.5268,0.6367,0.5601,0.6715,0.5988

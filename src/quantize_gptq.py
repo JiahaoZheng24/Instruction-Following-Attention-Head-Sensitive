@@ -95,6 +95,30 @@ def load_calib(kind: str, tokenizer, n: int, seqlen: int, seed: int = 0) -> list
                 break
             texts.append(tokenizer.decode(ids[a:a + seqlen]))
         return texts
+    if kind in ("c4win", "pile"):
+        # W56c: FULL-LENGTH samples (doc start, first `seqlen` tokens of docs
+        # that have at least seqlen tokens) — AutoRound's loader convention and
+        # the literature's 128 x 2048 budget. "c4win" keeps the corpus of the
+        # default arms and changes only sample length (BOS share 1/2048 instead
+        # of ~1/420); "pile" is NeelNanda/pile-10k, AutoRound's default corpus.
+        from datasets import load_dataset
+        if kind == "c4win":
+            ds = load_dataset("allenai/c4", "en", split="train", streaming=True)
+        else:
+            ds = load_dataset("NeelNanda/pile-10k", split="train")
+        texts, skip = [], seed * n
+        for ex in ds:
+            ids = tokenizer(ex["text"], add_special_tokens=False).input_ids
+            if len(ids) < seqlen:
+                continue
+            if skip > 0:
+                skip -= 1
+                continue
+            texts.append(tokenizer.decode(ids[: seqlen - 1]))   # caller re-tokenises with BOS -> seqlen
+            if len(texts) >= n:
+                break
+        assert len(texts) == n, f"{kind}: only {len(texts)} docs with >= {seqlen} tokens"
+        return texts
     # c4 (default, literature-standard)
     from datasets import load_dataset
     ds = load_dataset("allenai/c4", "en", split="train", streaming=True)

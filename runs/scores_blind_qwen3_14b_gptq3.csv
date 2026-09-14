@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_qwen3_14b_gptq3,0.3882,0.5348,0.4418,0.5827,0.4869

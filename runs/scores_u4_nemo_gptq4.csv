@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+u4_nemo_gptq4,0.5323,0.6343,0.5693,0.6727,0.6022

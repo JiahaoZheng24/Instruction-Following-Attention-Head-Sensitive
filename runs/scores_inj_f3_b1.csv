@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+inj_f3_b1,0.6673,0.753,0.695,0.7842,0.7249

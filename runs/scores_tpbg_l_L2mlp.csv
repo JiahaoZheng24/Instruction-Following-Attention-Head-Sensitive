@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+tpbg_l_L2mlp,0.0887,0.193,0.1035,0.2218,0.1518

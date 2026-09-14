@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gt_qwen3_14b_gwtn,0.3919,0.542,0.4806,0.6139,0.5071

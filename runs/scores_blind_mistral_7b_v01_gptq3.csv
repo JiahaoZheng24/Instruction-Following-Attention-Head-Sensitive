@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_mistral_7b_v01_gptq3,0.3826,0.4784,0.4085,0.5084,0.4445

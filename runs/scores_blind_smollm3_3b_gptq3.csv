@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_smollm3_3b_gptq3,0.2625,0.4053,0.3031,0.4436,0.3536

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_falcon3_10b_rtn3,0.5434,0.6415,0.5767,0.6739,0.6089

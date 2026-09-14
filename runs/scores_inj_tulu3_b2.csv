@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+inj_tulu3_b2,0.78,0.8465,0.8022,0.8681,0.8242

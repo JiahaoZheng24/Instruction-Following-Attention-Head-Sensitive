@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+u4_granite_gptq4,0.6451,0.729,0.6784,0.7578,0.7026

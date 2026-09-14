@@ -1,0 +1,13 @@
+{
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "bits": 4,
+  "group_size": 128,
+  "quantizer": "hqq",
+  "sym": false,
+  "calib": null,
+  "n_calib": 0,
+  "protect": "none",
+  "selected_params": 0,
+  "note": "HQQ half-quadratic, asymmetric per-group zero-point, axis=1 (groups along input dim); calibration-free; fake-quant dequantized weights",
+  "format": "fake-quant fp checkpoint"
+}

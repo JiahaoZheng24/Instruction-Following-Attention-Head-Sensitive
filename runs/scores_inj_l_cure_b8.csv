@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+inj_l_cure_b8,0.3235,0.452,0.3604,0.4916,0.4069

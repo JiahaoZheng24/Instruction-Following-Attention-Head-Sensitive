@@ -1,0 +1,10 @@
+class,cos_with_bos_dir,rel_err,energy_share_on_bos_dir
+bos,0.4411,0.6710,0.1946
+tpl,0.3205,0.8670,0.1197
+rest,0.2447,0.2103,0.0787
+pos2,0.4889,3.9564,nan
+pos3,0.3857,0.2786,nan
+pos4,0.1499,0.1615,nan
+pos5,0.2181,0.1655,nan
+pos6,0.2196,0.2506,nan
+pos7,0.4610,0.3896,nan

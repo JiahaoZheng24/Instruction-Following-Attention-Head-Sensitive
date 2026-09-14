@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gt_f3_gwtn_pile,0.6266,0.7122,0.6636,0.7518,0.6886

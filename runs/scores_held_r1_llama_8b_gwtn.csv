@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+held_r1_llama_8b_gwtn,0.2865,0.4221,0.3142,0.4508,0.3684

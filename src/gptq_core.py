@@ -159,6 +159,19 @@ class MaskedGPTQ:
         # scaled down to that ceiling; ordinary tokens are untouched. Keeps the
         # BOS / sink token in the objective but bounds its dominance.
         self.token_cap = 0.0
+        # W54: causal induction. Multiply the FIRST position of every
+        # calibration sample (the BOS token) by bos_scale before it enters H,
+        # i.e. artificially increase the BOS dominance of the calibration
+        # Hessian. Prediction: models with a BOS-dominated sink-forming
+        # down_proj collapse when pushed further; gemma (no such structure)
+        # does not.
+        self.bos_scale = 1.0
+        # W60: output-side (K-FAC G) token weights. When set to a 1-D tensor
+        # [T] for the sample currently being fed, add_batch accumulates
+        # sum_t w_t x_t x_t^T instead of sum_t x_t x_t^T (w_t = normalised
+        # ||dL/dy_t||^2 from grad_weights.collect_token_sides). Applies to H
+        # only, never to the diagnostic Hessians.
+        self.token_w = None
 
     @torch.no_grad()
     def _accum(self, H, n_prev, inp):
@@ -175,6 +188,9 @@ class MaskedGPTQ:
         """inp: [..., columns] input activations of this linear."""
         if self.drop_pos > 0 and inp.dim() >= 2 and inp.shape[-2] > self.drop_pos:
             inp = inp[..., self.drop_pos:, :]
+        if self.bos_scale != 1.0 and inp.dim() >= 2:
+            inp = inp.clone()
+            inp[..., 0, :] = inp[..., 0, :] * self.bos_scale
         if self.token_norm:
             x = inp.reshape(-1, self.columns).float()
             n = x.norm(dim=1, keepdim=True)
@@ -189,6 +205,13 @@ class MaskedGPTQ:
             n = x.norm(dim=1, keepdim=True)
             med = n.median()
             inp = x * (self.token_cap * med / n.clamp(min=1e-6)).clamp(max=1.0)
+        if self.token_w is not None:
+            x = inp.reshape(-1, self.columns).float()
+            w = self.token_w
+            if self.drop_pos > 0 and w.numel() > x.shape[0]:
+                w = w[-x.shape[0]:]
+            assert w.numel() == x.shape[0], f"token_w {w.numel()} vs tokens {x.shape[0]} ({self.name})"
+            inp = x * w.to(x.device, torch.float32).sqrt().unsqueeze(1)
         self.nsamples = self._accum(self.H, self.nsamples, inp)
 
     @torch.no_grad()
@@ -396,10 +419,10 @@ class MaskedGPTQ:
                 torch.stack([torch.diag(Hraw), torch.diag(Ha)]))[0, 1])
         stats["send_mass"] = send_mass.cpu()
         if self.X_tpl:
-            self._fill_pos_stats(stats, d_g, d_r, Hraw, percdamp)
+            self._fill_pos_stats(stats, d_g, d_r, Hraw, percdamp, W_orig_ref=W_orig)
 
     @torch.no_grad()
-    def _fill_pos_stats(self, stats, d_g, d_r, Hraw, percdamp):
+    def _fill_pos_stats(self, stats, d_g, d_r, Hraw, percdamp, W_orig_ref=None):
         """Position-resolved objective (W38). obj_*_tpl = mean over stored
         template-position inputs of ||delta x||^2; obj_*_ord the same for the
         following P ordinary positions; tplpos_ratio = per-position
@@ -425,6 +448,48 @@ class MaskedGPTQ:
         # group sizes, damping and Hessian re-weighting.
         stats["tplpos_err_gptq"] = ",".join(f"{float(a.sqrt()):.4g}" for a in eg)
         stats["tplpos_err_rtn"] = ",".join(f"{float(b.sqrt()):.4g}" for b in er)
+        # W50: WHERE in the output does the template-token error sit? For
+        # position 4 (Llama: <|end_header_id|>) record the output channel that
+        # carries the largest error energy and its share, for GPTQ and RTN, plus
+        # the per-column input contribution: the calibration column (input
+        # channel) with the largest |x_j| at that position and the fraction of
+        # GPTQ's error explained by the top-8 input channels.
+        try:
+            Xp = Xt.view(-1, P, Xt.shape[1])[:, 4, :]                 # [n_prompts, cols]
+            Eg = Xp @ d_g.t(); Er = Xp @ d_r.t()                      # [n_prompts, rows]
+            rg = (Eg ** 2).mean(0); rr = (Er ** 2).mean(0)
+            stats["p4_toprow_gptq"] = int(rg.argmax()); stats["p4_toprow_share_gptq"] = float(rg.max() / rg.sum().clamp(min=1e-12))
+            stats["p4_toprow_rtn"] = int(rr.argmax()); stats["p4_toprow_share_rtn"] = float(rr.max() / rr.sum().clamp(min=1e-12))
+            xm = Xp.abs().mean(0)
+            topc = torch.topk(xm, 8).indices
+            stats["p4_topcols"] = ",".join(str(int(c)) for c in topc)
+            Eg_top = Xp[:, topc] @ d_g[:, topc].t()
+            stats["p4_topcols_share_gptq"] = float((Eg_top ** 2).sum() / (Eg ** 2).sum().clamp(min=1e-12))
+            # annihilation test: in the top input columns at position 4, what
+            # fraction of weights were rounded to exactly zero (GPTQ vs RTN)?
+            stats["p4_topcols_zero_gptq"] = float((Q_top_g := (W_orig_ref[:, topc] - d_g[:, topc])).abs().lt(1e-12).float().mean()) if W_orig_ref is not None else ""
+            stats["p4_topcols_zero_rtn"] = float((W_orig_ref[:, topc] - d_r[:, topc]).abs().lt(1e-12).float().mean()) if W_orig_ref is not None else ""
+            stats["p4_topcols_wnorm"] = ",".join(f"{float(W_orig_ref[:, c].norm()):.3g}" for c in topc) if W_orig_ref is not None else ""
+            stats["p4_topcols_x"] = ",".join(f"{float(xm[c]):.3g}" for c in topc)
+            # W51: the trade-and-clip test. For the output row that carries the
+            # largest template error (the super-weight row), log the original
+            # weight, the GPTQ value and the RTN value at the top input columns,
+            # plus the row's max |W| and max |Q|: if GPTQ has moved small weights
+            # of that row to +-(row range) while RTN left them near zero, the
+            # bit-independent error is a clipped trade between collinear BOS
+            # channels.
+            if W_orig_ref is not None:
+                rr_ = int(rg.argmax())
+                Qg_ = W_orig_ref - d_g; Qr_ = W_orig_ref - d_r
+                stats["p4_toprow_w"] = ",".join(f"{float(W_orig_ref[rr_, c]):.3g}" for c in topc)
+                stats["p4_toprow_qg"] = ",".join(f"{float(Qg_[rr_, c]):.3g}" for c in topc)
+                stats["p4_toprow_qr"] = ",".join(f"{float(Qr_[rr_, c]):.3g}" for c in topc)
+                stats["p4_toprow_maxw"] = float(W_orig_ref[rr_].abs().max())
+                stats["p4_toprow_maxqg"] = float(Qg_[rr_].abs().max())
+                stats["p4_toprow_nclip"] = int((Qg_[rr_].abs() >= 0.999 * Qg_[rr_].abs().max()).sum())
+                stats["p4_toprow_err_g"] = float(rg[rr_].sqrt()); stats["p4_toprow_err_r"] = float(rr[rr_].sqrt())
+        except Exception:  # noqa: BLE001
+            pass
         try:
             Hd = Hraw.clone()
             idx = torch.arange(self.columns, device=self.dev)

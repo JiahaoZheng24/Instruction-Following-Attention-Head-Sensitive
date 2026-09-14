@@ -1,0 +1,16 @@
+{
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "bits": 3,
+  "group_size": 128,
+  "quantizer": "autoround",
+  "sym": true,
+  "iters": 200,
+  "calib": "c4win x128 (our loader/truncation as GPTQ arms; variable length, min 2036 / mean 2048 / max 2048 tokens; batch 1)",
+  "n_calib": 128,
+  "seqlen": 2048,
+  "ar_seqlen": 2036,
+  "protect": "none",
+  "selected_params": 0,
+  "saved_via": "save_quantized(format=fake)",
+  "format": "fake-quant fp checkpoint"
+}

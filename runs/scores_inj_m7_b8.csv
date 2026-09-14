@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+inj_m7_b8,0.2865,0.4041,0.305,0.4281,0.3559

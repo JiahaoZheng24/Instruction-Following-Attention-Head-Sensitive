@@ -1,0 +1,20 @@
+class,cos_with_bos_dir,rel_err,energy_share_on_bos_dir
+bos,0.4483,0.6811,0.2010
+tpl,0.3215,0.8692,0.1204
+rest,0.2443,0.2102,0.0786
+pos2,0.4915,3.9728,nan
+pos3,0.3867,0.2754,nan
+pos4,0.1509,0.1615,nan
+pos5,0.2195,0.1658,nan
+pos6,0.2196,0.2508,nan
+pos7,0.4607,0.3889,nan
+prompt_ordinary(n=1054),0.1184,0.2297,nan
+prompt_template(n=80),0.2034,0.3169,nan
+resp_ordinary(n=1898),0.0755,0.1532,nan
+resp_template(n=2),0.0950,0.2078,nan
+"overlap_q1(n=604,tpl_frac=0.00)",nan,5.7496,0.0071
+"overlap_q2(n=603,tpl_frac=0.00)",nan,5.4530,0.0181
+"overlap_q3(n=604,tpl_frac=0.00)",nan,5.7057,0.0267
+"overlap_q4(n=604,tpl_frac=0.01)",nan,7.2690,0.0373
+"overlap_q5(n=603,tpl_frac=0.09)",nan,22.5285,0.4038
+"pearson(|x0.x_t|,||e_t||) linear=0.119 log=0.351 n=3018",0.1189,0.3510,nan

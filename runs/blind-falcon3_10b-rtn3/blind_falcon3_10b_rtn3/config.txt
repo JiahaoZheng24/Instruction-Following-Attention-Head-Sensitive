@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/blind-falcon3_10b-rtn3
+heads=[]
+n=0

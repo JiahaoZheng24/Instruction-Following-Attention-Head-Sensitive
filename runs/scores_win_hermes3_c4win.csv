@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+win_hermes3_c4win,0.329,0.47,0.3826,0.5168,0.4246

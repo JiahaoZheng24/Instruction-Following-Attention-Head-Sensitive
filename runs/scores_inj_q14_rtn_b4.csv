@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+inj_q14_rtn_b4,0.61,0.7038,0.6377,0.7254,0.6692

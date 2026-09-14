@@ -1,0 +1,2 @@
+tag,t1_prompt_strict,t1_inst_strict,t2_prompt_strict,t2_inst_strict,t3_prompt_strict,t3_inst_strict,skipped_instructions
+mif_q14_fp16,0.8119,0.8601,0.5655,0.7903,0.4085,0.7674,0

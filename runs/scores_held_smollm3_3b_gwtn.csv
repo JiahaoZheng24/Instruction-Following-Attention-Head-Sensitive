@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+held_smollm3_3b_gwtn,0.2717,0.4149,0.342,0.476,0.3761

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_qwen3_8b_rtn3,0.2421,0.3825,0.2847,0.4197,0.3322

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gt_q7_gwtn_pile,0.6433,0.7302,0.6728,0.7602,0.7016

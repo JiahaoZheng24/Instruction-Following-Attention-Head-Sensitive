@@ -1,0 +1,15 @@
+{
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "bits": 3,
+  "group_size": 128,
+  "quantizer": "autoround",
+  "sym": true,
+  "iters": 200,
+  "calib": "c4 x128 (same loader as GPTQ arms) via /store01/yshi4/jzheng7/models/w56_calib_c4.jsonl",
+  "n_calib": 128,
+  "seqlen": 2048,
+  "protect": "none",
+  "selected_params": 0,
+  "saved_via": "save_quantized(format=fake)",
+  "format": "fake-quant fp checkpoint"
+}

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+held_mistral_7b_v01_gwtn,0.3697,0.47,0.3974,0.5096,0.4367

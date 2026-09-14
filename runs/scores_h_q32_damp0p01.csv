@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+h_q32_damp0p01,0.7079,0.7878,0.7449,0.8177,0.7646

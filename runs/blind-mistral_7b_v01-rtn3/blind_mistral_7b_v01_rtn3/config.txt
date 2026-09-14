@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/blind-mistral_7b_v01-rtn3
+heads=[]
+n=0

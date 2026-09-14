@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+win_hermes3_pile,0.3161,0.4448,0.3715,0.4988,0.4078

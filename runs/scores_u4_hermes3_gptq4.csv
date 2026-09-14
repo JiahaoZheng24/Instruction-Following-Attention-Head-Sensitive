@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+u4_hermes3_gptq4,0.4861,0.5887,0.5194,0.6235,0.5544

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+blind_r1_llama_8b_rtn3,0.2144,0.3597,0.2292,0.3765,0.295

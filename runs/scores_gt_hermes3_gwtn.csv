@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+gt_hermes3_gwtn,0.3216,0.44,0.353,0.476,0.3977

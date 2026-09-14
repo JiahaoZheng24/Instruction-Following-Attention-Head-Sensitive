@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+win_qwen3_8b_pile,0.3346,0.4736,0.3457,0.4868,0.4102

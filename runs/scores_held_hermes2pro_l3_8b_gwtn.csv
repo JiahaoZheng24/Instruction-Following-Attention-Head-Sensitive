@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+held_hermes2pro_l3_8b_gwtn,0.3161,0.4508,0.3715,0.5,0.4096
