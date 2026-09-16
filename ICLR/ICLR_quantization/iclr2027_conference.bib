@@ -1,0 +1,410 @@
+% ============================================================================
+% Bibliography.  Every entry was checked against its arXiv abstract page or
+% repository on 2026-09-15 (title, author list, year, venue); URLs open.
+% Grouped:  1 second-order PTQ and OBS lineage | 2 other PTQ methods |
+%           3 output-aware / token-weighted objectives | 4 calibration data |
+%           5 attention sinks, massive activations, super weights |
+%           6 quantisation failure analyses | 7 benchmarks, corpora, models |
+%           8 software
+% ============================================================================
+
+% ---------- 1. Second-order PTQ and the OBS lineage -------------------------
+@inproceedings{lecun1990obd,
+  title     = {Optimal Brain Damage},
+  author    = {LeCun, Yann and Denker, John S. and Solla, Sara A.},
+  booktitle = {Advances in Neural Information Processing Systems 2},
+  year      = {1990}
+}
+@inproceedings{hassibi1993obs,
+  title     = {Second Order Derivatives for Network Pruning: Optimal Brain Surgeon},
+  author    = {Hassibi, Babak and Stork, David G.},
+  booktitle = {Advances in Neural Information Processing Systems 5},
+  year      = {1993}
+}
+@inproceedings{frantar2022obc,
+  title     = {Optimal Brain Compression: A Framework for Accurate Post-Training Quantization and Pruning},
+  author    = {Frantar, Elias and Alistarh, Dan},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2022}
+}
+@inproceedings{frantar2023gptq,
+  title     = {{GPTQ}: Accurate Post-Training Quantization for Generative Pre-trained Transformers},
+  author    = {Frantar, Elias and Ashkboos, Saleh and Hoefler, Torsten and Alistarh, Dan},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2023},
+  url       = {https://arxiv.org/abs/2210.17323}
+}
+@inproceedings{li2025gptaq,
+  title     = {{GPTAQ}: Efficient Finetuning-Free Quantization for Asymmetric Calibration},
+  author    = {Li, Yuhang and Yin, Ruokai and Lee, Donghyun and Xiao, Shiting and Panda, Priyadarshini},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2504.02692}
+}
+@inproceedings{chen2026babai,
+  title     = {The Geometry of {LLM} Quantization: {GPTQ} as {B}abai's Nearest Plane Algorithm},
+  author    = {Chen, Jiale and Shabanzadeh, Yalda and Crn{\v{c}}evi{\'c}, Elvir and Hoefler, Torsten and Alistarh, Dan},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2026},
+  url       = {https://arxiv.org/abs/2507.18553}
+}
+@article{zhang2026heroq,
+  title   = {{HeRo-Q}: A General Framework for Stable Low Bit Quantization via {H}essian Conditioning},
+  author  = {Zhang, Jinhao and Zhang, Yunquan and Yan, Zicheng and Zhang, Boyang and Sun, Jun and Cheng, Daning},
+  journal = {arXiv preprint arXiv:2601.21626},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2601.21626}
+}
+@inproceedings{kim2026dashq,
+  title     = {Robust Ultra Low-Bit Post-Training Quantization via Stable Diagonal Curvature Estimate},
+  author    = {Kim, Jaemin and Kim, Sungkyun and Lee, Junyeol and Seo, Jiwon},
+  booktitle = {EuroMLSys},
+  year      = {2026},
+  url       = {https://arxiv.org/abs/2604.13806}
+}
+
+% ---------- 2. Other PTQ methods ---------------------------------------------
+@inproceedings{nagel2020adaround,
+  title     = {Up or Down? Adaptive Rounding for Post-Training Quantization},
+  author    = {Nagel, Markus and Amjad, Rana Ali and van Baalen, Mart and Louizos, Christos and Blankevoort, Tijmen},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2020}
+}
+@inproceedings{li2021brecq,
+  title     = {{BRECQ}: Pushing the Limit of Post-Training Quantization by Block Reconstruction},
+  author    = {Li, Yuhang and Gong, Ruihao and Tan, Xu and Yang, Yang and Yu, Peng and Zhang, Qi and Yu, Fengwei and Wang, Wei and Gu, Shi},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2021}
+}
+@inproceedings{lin2024awq,
+  title     = {{AWQ}: Activation-aware Weight Quantization for On-Device {LLM} Compression and Acceleration},
+  author    = {Lin, Ji and Tang, Jiaming and Tang, Haotian and Yang, Shang and Chen, Wei-Ming and Wang, Wei-Chen and Xiao, Guangxuan and Dang, Xingyu and Gan, Chuang and Han, Song},
+  booktitle = {Proceedings of Machine Learning and Systems},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2306.00978}
+}
+@inproceedings{dettmers2024spqr,
+  title     = {{SpQR}: A Sparse-Quantized Representation for Near-Lossless {LLM} Weight Compression},
+  author    = {Dettmers, Tim and Svirschevski, Ruslan and Egiazarian, Vage and Kuznedelev, Denis and Frantar, Elias and Ashkboos, Saleh and Borzunov, Alexander and Hoefler, Torsten and Alistarh, Dan},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2306.03078}
+}
+@inproceedings{kim2024squeezellm,
+  title     = {{SqueezeLLM}: Dense-and-Sparse Quantization},
+  author    = {Kim, Sehoon and Hooper, Coleman and Gholami, Amir and Dong, Zhen and Li, Xiuyu and Shen, Sheng and Mahoney, Michael W. and Keutzer, Kurt},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2306.07629}
+}
+@inproceedings{chee2023quip,
+  title     = {{QuIP}: 2-Bit Quantization of Large Language Models With Guarantees},
+  author    = {Chee, Jerry and Cai, Yaohui and Kuleshov, Volodymyr and De Sa, Christopher},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2023},
+  url       = {https://arxiv.org/abs/2307.13304}
+}
+@inproceedings{ashkboos2024quarot,
+  title     = {{QuaRot}: Outlier-Free 4-Bit Inference in Rotated {LLM}s},
+  author    = {Ashkboos, Saleh and Mohtashami, Amirkeivan and Croci, Maximilian L. and Li, Bo and Cameron, Pashmina and Jaggi, Martin and Alistarh, Dan and Hoefler, Torsten},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2404.00456}
+}
+@inproceedings{shao2024omniquant,
+  title     = {{OmniQuant}: Omnidirectionally Calibrated Quantization for Large Language Models},
+  author    = {Shao, Wenqi and Chen, Mengzhao and Zhang, Zhaoyang and Xu, Peng and Zhao, Lirui and Li, Zhiqian and Zhang, Kaipeng and Gao, Peng and Qiao, Yu and Luo, Ping},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2308.13137}
+}
+@inproceedings{cheng2024autoround,
+  title     = {Optimize Weight Rounding via Signed Gradient Descent for the Quantization of {LLM}s},
+  author    = {Cheng, Wenhua and Zhang, Weiwei and Shen, Haihao and Cai, Yiyang and He, Xin and Lv, Kaokao and Liu, Yi},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2024},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2309.05516}
+}
+@misc{badri2023hqq,
+  title  = {Half-Quadratic Quantization of Large Machine Learning Models},
+  author = {Badri, Hicham and Shaji, Appu},
+  year   = {2023},
+  howpublished = {\url{https://github.com/mobiusml/hqq}}
+}
+
+% ---------- 3. Output-aware and token-weighted objectives --------------------
+@inproceedings{martens2015kfac,
+  title     = {Optimizing Neural Networks with {K}ronecker-factored Approximate Curvature},
+  author    = {Martens, James and Grosse, Roger},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2015}
+}
+@inproceedings{lee2026kronq,
+  title     = {{KronQ}: {LLM} Quantization via {K}ronecker-Factored {H}essian},
+  author    = {Lee, Donghyun and Li, Yuhang and Yin, Ruokai and Panda, Priyadarshini},
+  booktitle = {Conference on Language Modeling},
+  year      = {2026},
+  url       = {https://arxiv.org/abs/2607.07964}
+}
+@inproceedings{kim2025guidedquant,
+  title     = {{GuidedQuant}: Large Language Model Quantization via Exploiting End Loss Guidance},
+  author    = {Kim, Jinuk and El Halabi, Marwa and Park, Wonpyo and Schaefer, Clemens J. S. and Lee, Deokjae and Park, Yeonhong and Lee, Jae W. and Song, Hyun Oh},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2505.07004}
+}
+@article{xue2025vlmq,
+  title   = {{VLMQ}: Token Saliency-Driven Post-Training Quantization for Vision-language Models},
+  author  = {Xue, Yufei and Huang, Yushi and Shao, Jiawei and Zhu, Lunjie and Zhang, Chi and Li, Xuelong and Zhang, Jun},
+  journal = {arXiv preprint arXiv:2508.03351},
+  year    = {2025},
+  url     = {https://arxiv.org/abs/2508.03351}
+}
+@article{sung2025rsq,
+  title   = {{RSQ}: Learning from Important Tokens Leads to Better Quantized {LLM}s},
+  author  = {Sung, Yi-Lin and Yadav, Prateek and Li, Jialu and Yoon, Jaehong and Bansal, Mohit},
+  journal = {arXiv preprint arXiv:2503.01820},
+  year    = {2025},
+  url     = {https://arxiv.org/abs/2503.01820}
+}
+@inproceedings{lee2026lfq,
+  title     = {{LFQ}: Logit-aware Final-block Quantization for Boosting the Generation Quality of Low-Bit Quantized {LLM}s},
+  author    = {Lee, Jung Hyun and Yang, June Yong and Choi, Jungwook and Yang, Eunho},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2026},
+  url       = {https://arxiv.org/abs/2605.29756}
+}
+
+% ---------- 4. Calibration data -----------------------------------------------
+@inproceedings{williams2024calibration,
+  title     = {On the Impact of Calibration Data in Post-training Quantization and Pruning},
+  author    = {Williams, Miles and Aletras, Nikolaos},
+  booktitle = {Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2311.09755}
+}
+@inproceedings{son2026maca,
+  title     = {On the Importance of a Multi-Scale Calibration for Quantization},
+  author    = {Son, Seungwoo and Seong, Ingyu and Kim, Junhan and Jang, Hyemi and Jeon, Yongkweon},
+  booktitle = {IEEE International Conference on Acoustics, Speech and Signal Processing},
+  year      = {2026},
+  url       = {https://arxiv.org/abs/2602.07465}
+}
+@article{lee2025upq,
+  title   = {Unifying Block-wise {PTQ} and Distillation-based {QAT} for Progressive Quantization toward 2-bit Instruction-Tuned {LLM}s},
+  author  = {Lee, Jung Hyun and Shin, Seungjae and Kim, Vinnam and You, Jaeseong and Chen, An},
+  journal = {arXiv preprint arXiv:2506.09104},
+  year    = {2025},
+  url     = {https://arxiv.org/abs/2506.09104}
+}
+
+% ---------- 5. Attention sinks, massive activations, super weights ----------
+@inproceedings{xiao2024streamingllm,
+  title     = {Efficient Streaming Language Models with Attention Sinks},
+  author    = {Xiao, Guangxuan and Tian, Yuandong and Chen, Beidi and Han, Song and Lewis, Mike},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2309.17453}
+}
+@inproceedings{sun2024massive,
+  title     = {Massive Activations in Large Language Models},
+  author    = {Sun, Mingjie and Chen, Xinlei and Kolter, J. Zico and Liu, Zhuang},
+  booktitle = {Conference on Language Modeling},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2402.17762}
+}
+@inproceedings{gu2025sink,
+  title     = {When Attention Sink Emerges in Language Models: An Empirical View},
+  author    = {Gu, Xiangming and Pang, Tianyu and Du, Chao and Liu, Qian and Zhang, Fengzhuo and Du, Cunxiao and Wang, Ye and Lin, Min},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2410.10781}
+}
+@inproceedings{an2025systematic,
+  title     = {Systematic Outliers in Large Language Models},
+  author    = {An, Yongqi and Zhao, Xu and Yu, Tao and Tang, Ming and Wang, Jinqiao},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2502.06415}
+}
+@article{barbero2025firsttoken,
+  title   = {Why do {LLM}s attend to the first token?},
+  author  = {Barbero, Federico and Arroyo, {\'A}lvaro and Gu, Xiangming and Perivolaropoulos, Christos and Bronstein, Michael and Veli{\v{c}}kovi{\'c}, Petar and Pascanu, Razvan},
+  journal = {arXiv preprint arXiv:2504.02732},
+  year    = {2025},
+  url     = {https://arxiv.org/abs/2504.02732}
+}
+@article{yu2024superweight,
+  title   = {The Super Weight in Large Language Models},
+  author  = {Yu, Mengxia and Wang, De and Shan, Qi and Reed, Colorado J. and Wan, Alvin},
+  journal = {arXiv preprint arXiv:2411.07191},
+  year    = {2024},
+  url     = {https://arxiv.org/abs/2411.07191}
+}
+@article{chen2026gradientsinks,
+  title   = {Attention Sinks Induce Gradient Sinks: Massive Activations as Gradient Regulators in Transformers},
+  author  = {Chen, Yihong and Lin, Zhouchen and Yao, Quanming},
+  journal = {arXiv preprint arXiv:2603.17771},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2603.17771}
+}
+@article{chen2026spikes,
+  title   = {Massive Spikes in {LLM}s are Bias Vectors: Mechanistic Uncovering and Spike-Free Quantization},
+  author  = {Chen, Yung-Chin and Lee, Chung Peng and Liou, Ze-Wei and Verma, Naveen},
+  journal = {arXiv preprint arXiv:2606.02288},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2606.02288}
+}
+
+% ---------- 6. Analyses of quantisation failure -------------------------------
+@inproceedings{jaiswal2024kick,
+  title     = {Compressing {LLM}s: The Truth is Rarely Pure and Never Simple},
+  author    = {Jaiswal, Ajay and Gan, Zhe and Du, Xianzhi and Zhang, Bowen and Wang, Zhangyang and Yang, Yinfei},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2310.01382}
+}
+@article{huang2024llama3quant,
+  title   = {An Empirical Study of {LLaMA3} Quantization: From {LLM}s to {MLLM}s},
+  author  = {Huang, Wei and Zheng, Xingyu and Ma, Xudong and Qin, Haotong and Lv, Chengtao and Chen, Hong and Luo, Jie and Qi, Xiaojuan and Liu, Xianglong and Magno, Michele},
+  journal = {Visual Intelligence},
+  volume  = {2},
+  number  = {36},
+  year    = {2024},
+  url     = {https://arxiv.org/abs/2404.14047}
+}
+@inproceedings{lee2025tradeoffs,
+  title     = {Exploring the Trade-Offs: Quantization Methods, Task Difficulty, and Model Size in Large Language Models From Edge to Giant},
+  author    = {Lee, Jemin and Park, Sihyeong and Kwon, Jinse and Oh, Jihun and Kwon, Yongin},
+  booktitle = {International Joint Conference on Artificial Intelligence},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2409.11055}
+}
+@inproceedings{zhou2026twofailure,
+  title     = {From Signal Degradation to Computation Collapse: Uncovering the Two Failure Modes of {LLM} Quantization},
+  author    = {Zhou, Chenxi and Cao, Pengfei and Li, Jiang and Yu, Bohan and Ye, Jinyu and Zhao, Jun and Liu, Kang},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2026},
+  year      = {2026},
+  url       = {https://arxiv.org/abs/2604.19884}
+}
+@article{zhou2026signalnoise,
+  title   = {Quantization Degradation in Large Language Models: A Signal-Noise Perspective},
+  author  = {Zhou, Chenxi and Cao, Pengfei and Ye, Jinyu and Yu, Bohan and Yu, Haida and Li, Jiang and Zhao, Jun and Liu, Kang},
+  journal = {arXiv preprint arXiv:2608.08188},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2608.08188}
+}
+@article{xu2026alignmentcollapse,
+  title   = {Alignment Collapse Under {KV} Cache Quantization: Diagnosis and Mitigation},
+  author  = {Xu, Bruce Changlong and Kumarappan, Adarsh and Zhou, Mu},
+  journal = {arXiv preprint arXiv:2606.09864},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2606.09864}
+}
+@article{hu2026damage,
+  title   = {The Structure of Quantization Damage in {LLM}s: Why the Next Bit Should Be Spent Globally},
+  author  = {Hu, Jundong and Ramachandran, Shekar},
+  journal = {arXiv preprint arXiv:2609.01587},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2609.01587}
+}
+@inproceedings{xiao2025tacq,
+  title     = {Task-Circuit Quantization: Leveraging Knowledge Localization and Interpretability for Compression},
+  author    = {Xiao, Hanqi and Sung, Yi-Lin and Stengel-Eskin, Elias and Bansal, Mohit},
+  booktitle = {Conference on Language Modeling},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2504.07389}
+}
+@inproceedings{kumar2025precision,
+  title     = {Scaling Laws for Precision},
+  author    = {Kumar, Tanishq and Ankner, Zachary and Spector, Benjamin F. and Bordelon, Blake and Muennighoff, Niklas and Paul, Mansheej and Pehlevan, Cengiz and R{\'e}, Christopher and Raghunathan, Aditi},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2025},
+  url       = {https://arxiv.org/abs/2411.04330}
+}
+
+% ---------- 7. Benchmarks, corpora, models ----------------------------------
+@article{zhou2023ifeval,
+  title   = {Instruction-Following Evaluation for Large Language Models},
+  author  = {Zhou, Jeffrey and Lu, Tianjian and Mishra, Swaroop and Brahma, Siddhartha and Basu, Sujoy and Luan, Yi and Zhou, Denny and Hou, Le},
+  journal = {arXiv preprint arXiv:2311.07911},
+  year    = {2023},
+  url     = {https://arxiv.org/abs/2311.07911}
+}
+@article{he2024multiif,
+  title   = {{Multi-IF}: Benchmarking {LLM}s on Multi-Turn and Multilingual Instructions Following},
+  author  = {He, Yun and Jin, Di and Wang, Chaoqi and Bi, Chloe and Mandyam, Karishma and Zhang, Hejia and Zhu, Chen and Li, Ning and Xu, Tengyu and Lv, Hongjiang and Bhosale, Shruti and Zhu, Chenguang and Sankararaman, Karthik Abinav and Helenowski, Eryk and Kambadur, Melanie and Tayade, Aditya and Ma, Hao and Fang, Han and Wang, Sinong},
+  journal = {arXiv preprint arXiv:2410.15553},
+  year    = {2024},
+  url     = {https://arxiv.org/abs/2410.15553}
+}
+@article{cobbe2021gsm8k,
+  title   = {Training Verifiers to Solve Math Word Problems},
+  author  = {Cobbe, Karl and Kosaraju, Vineet and Bavarian, Mohammad and Chen, Mark and Jun, Heewoo and Kaiser, Lukasz and Plappert, Matthias and Tworek, Jerry and Hilton, Jacob and Nakano, Reiichiro and Hesse, Christopher and Schulman, John},
+  journal = {arXiv preprint arXiv:2110.14168},
+  year    = {2021}
+}
+@inproceedings{hendrycks2021mmlu,
+  title     = {Measuring Massive Multitask Language Understanding},
+  author    = {Hendrycks, Dan and Burns, Collin and Basart, Steven and Zou, Andy and Mazeika, Mantas and Song, Dawn and Steinhardt, Jacob},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2021}
+}
+@article{raffel2020c4,
+  title   = {Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer},
+  author  = {Raffel, Colin and Shazeer, Noam and Roberts, Adam and Lee, Katherine and Narang, Sharan and Matena, Michael and Zhou, Yanqi and Li, Wei and Liu, Peter J.},
+  journal = {Journal of Machine Learning Research},
+  volume  = {21},
+  number  = {140},
+  year    = {2020}
+}
+@article{gao2021pile,
+  title   = {The {P}ile: An 800{GB} Dataset of Diverse Text for Language Modeling},
+  author  = {Gao, Leo and Biderman, Stella and Black, Sid and Golding, Laurence and Hoppe, Travis and Foster, Charles and Phang, Jason and He, Horace and Thite, Anish and Nabeshima, Noa and Presser, Shawn and Leahy, Connor},
+  journal = {arXiv preprint arXiv:2101.00027},
+  year    = {2021}
+}
+@inproceedings{merity2017wikitext,
+  title     = {Pointer Sentinel Mixture Models},
+  author    = {Merity, Stephen and Xiong, Caiming and Bradbury, James and Socher, Richard},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2017}
+}
+@inproceedings{ding2023ultrachat,
+  title     = {Enhancing Chat Language Models by Scaling High-quality Instructional Conversations},
+  author    = {Ding, Ning and Chen, Yulin and Xu, Bokai and Qin, Yujia and Zheng, Zhi and Hu, Shengding and Liu, Zhiyuan and Sun, Maosong and Zhou, Bowen},
+  booktitle = {Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing},
+  year      = {2023}
+}
+@article{grattafiori2024llama3,
+  title   = {The {Llama} 3 Herd of Models},
+  author  = {Grattafiori, Aaron and others},
+  journal = {arXiv preprint arXiv:2407.21783},
+  year    = {2024}
+}
+@article{qwen2025qwen25,
+  title   = {{Qwen2.5} Technical Report},
+  author  = {{Qwen Team}},
+  journal = {arXiv preprint arXiv:2412.15115},
+  year    = {2025}
+}
+@article{jiang2023mistral,
+  title   = {Mistral 7{B}},
+  author  = {Jiang, Albert Q. and Sablayrolles, Alexandre and Mensch, Arthur and Bamford, Chris and Chaplot, Devendra Singh and de las Casas, Diego and Bressand, Florian and Lengyel, Gianna and Lample, Guillaume and Saulnier, Lucile and Lavaud, L{\'e}lio Renard and Lachaux, Marie-Anne and Stock, Pierre and Le Scao, Teven and Lavril, Thibaut and Wang, Thomas and Lacroix, Timoth{\'e}e and El Sayed, William},
+  journal = {arXiv preprint arXiv:2310.06825},
+  year    = {2023}
+}
+
+% ---------- 8. Software ---------------------------------------------------------
+@misc{gptqmodel,
+  title        = {{GPTQModel}},
+  author       = {{ModelCloud}},
+  howpublished = {\url{https://github.com/ModelCloud/GPTQModel}},
+  year         = {2025}
+}
+@misc{llmcompressor,
+  title        = {{LLM Compressor}},
+  author       = {{vLLM Project}},
+  howpublished = {\url{https://docs.vllm.ai/projects/llm-compressor/en/latest/}},
+  year         = {2025}
+}

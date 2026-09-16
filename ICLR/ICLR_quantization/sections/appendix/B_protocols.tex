@@ -1,0 +1,21 @@
+\section{Protocols and implementation details}
+\label{app:protocols}
+
+\subsection{Calibration sampling in the reference implementations}
+We verified the sampling of each protocol against the source of the implementation that uses it (September 2026).
+\begin{itemize}
+\item \textbf{GPTQ reference code} \citep{frantar2023gptq}: draws documents of at least 2,048 tokens and cuts one random 2,048-token window from each; our c4win and Pile protocols follow this.
+\item \textbf{GPTQModel} \citep{gptqmodel}, \texttt{utils/calibration.py}: tokenises each calibration row separately, does not truncate below the model's maximum length and does not concatenate rows by default; the README example takes 1,024 rows of C4. Its \texttt{QuantizeConfig} defaults are symmetric quantisation, group size 128, \texttt{damp\_percent} 0.05, \texttt{true\_sequential} on and \texttt{desc\_act} unset. Our short-document protocol reproduces its sampling with 128 rows; with 1,024 rows and the same damping Llama gives \LgptqLibIF{} and Qwen \QgptqLibIF{}.
+\item \textbf{LLM Compressor} \citep{llmcompressor}, \texttt{transformers/data/base.py}: truncates each sample to \texttt{max\_seq\_length} and does not concatenate by default, the same sampling shape; its documented example for instruction-tuned models uses chat-formatted data, which is one of the remedies of \cref{cor:shape}.
+\end{itemize}
+Our quantiser matches the reference loop of GPTQ with act-order and $\rho=0.05$ and collects the Hessians of the seven matrices of a block from the block's unquantised input (no true-sequential pass); RTN uses the same grouping and symmetric grid.
+
+\subsection{A correction to our layer-wise loop}
+An earlier version of our loop passed the keyword arguments captured from the model's forward call, including an automatically created key-value cache, into the per-layer calls.
+Because each layer is called twice per sample (once to accumulate the Hessian, once to propagate after quantisation), the second call attended the layer's pre-quantisation keys and values.
+Every number in this paper comes from the corrected loop, which we validated by comparing the propagated activations at every depth with a full forward pass of the quantised model (relative error $0$ at all layers for Llama and Qwen).
+On the seven headline arms the correction moved IFEval by at most 1.5 points on six and by 22 points on one marginal arm (Llama under Pile windows, from a collapsed to a healthy value); the direction of every conclusion was unchanged.
+\todo{Update this paragraph once the W72 re-run is complete.}
+
+\subsection{Evaluation}
+\todo{IFEval scoring, prompt template and generation length (1,280 tokens, greedy); Multi-IF English three-turn subset; GSM8K zero-shot chain-of-thought prompt; MMLU five-shot; WikiText-2 perplexity with 2,048-token windows; hardware and wall-clock per arm.}

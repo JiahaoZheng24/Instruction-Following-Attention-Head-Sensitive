@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+v2l_c4x1024_d10,0.098,0.1894,0.1017,0.2014,0.1476

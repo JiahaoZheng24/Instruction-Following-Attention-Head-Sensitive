@@ -1,0 +1,19 @@
+\begin{table}[t]
+\caption{What generalises, with the number of models behind each statement. Per-model values are in \cref{app:extra}.}
+\label{tab:census}
+\begin{center}
+\small
+\begin{tabular}{lcl}
+\toprule
+Statement & Models & Outcome \\
+\midrule
+Blind spot (\cref{prop:mismatch}) at the sink-forming layer & \nSink{} with a sink, \nNoSink{} without & \nSink{}/\nSink{}; 0/\nNoSink{} \\
+3-bit collapse under the short-document protocol            & \nCensus{}  & \nCollapse{} \\
+3-bit collapse under C4 windows                              & \nWin{}     & 1 (Mistral-7B-v0.3) \\
+4-bit GPTQ minus 4-bit RTN                                   & \nFour{}    & mean \FourMeanDelta{}; \FourMistral{} and \FourQwenThree{} at worst \\
+Corrected objective minus RTN, worst case, three protocols   & \nCorr{}    & \CorrWorstVsRTN{} \\
+Corrected objective minus GPTQ on models that did not collapse & \nHealthy{} & mean \CorrHealthyMean{} (\CorrHealthyWorst{} to \CorrHealthyBest{}) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

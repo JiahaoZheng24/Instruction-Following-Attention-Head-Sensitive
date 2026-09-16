@@ -1,0 +1,24 @@
+\begin{table}[t]
+\caption{Six quantisers at 3 bits (group 128, short-document calibration where calibration is used), sorted by objective. IFEval.}
+\label{tab:methods}
+\begin{center}
+\small
+\begin{tabular}{llcc}
+\toprule
+Objective & Method & Llama-3.1-8B & Qwen2.5-14B \\
+\midrule
+\multirow{3}{*}{input-side curvature (OBS)}
+ & GPTQ                    & \LgptqIF{}  & \QgptqIF{} \\
+ & GPTAQ                   & \LgptaqIF{} & \QgptaqIF{} \\
+ & GPTQ after rotation     & \LrotIF{}   & \QrotIF{} \\
+\midrule
+token-averaged block loss & AutoRound & \LarIF{} & \QarIF{} \\
+\midrule
+\multirow{3}{*}{none}
+ & RTN                     & \LrtnIF{}   & \QrtnIF{} \\
+ & HQQ                     & \LhqqIF{}   & \QhqqIF{} \\
+ & AWQ (channel scales)    & \LawqIF{}   & \QawqIF{} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

@@ -1,0 +1,26 @@
+\section{How far the account reaches}
+\label{sec:universality}
+\paragraph{What generalises.}
+The three parts of the account generalise to different degrees; each statement below was written as a prediction before the models were run.
+The premise, \cref{prop:mismatch}, holds in every one of \nSink{} instruction-tuned models with a sink-dominated down-projection ($A_{\bos}\ge\AbosMin$, $G_{\bos}\le\GbosMax$) and in neither gemma-2 model, whose architecture has no such layer (largest $A_{\bos}$ \GemmaAbosMax{}); the boundary is the sink, not the model family.
+The lesion follows wherever the premise holds and the quantiser is OBS-based: at the sink-forming down-projection of every sink model, the error of GPTQ on the template positions exceeds RTN's, by a factor between \LesionRatioMin{} (Qwen2.5-7B) and \LesionRatioMax{} (Qwen2.5-14B).
+Collapse does not follow: \nCollapse{} of \nCensus{} models collapse under short documents and one of \nWin{} under c4win; the size of the lesion ranks the models' losses (Spearman \LesionSpearman{} on \nBlind{} models run after the rule was fixed) but sets no threshold, and models with a lesion as large as Nemo's do not collapse (\cref{app:extra}).
+Collapse is rare because it needs the lesion and the background together.
+The corrected objective is bounded below: on \nCorr{} models and three protocols it never falls more than \CorrWorstVsRTN{} points below RTN, repairs every 3-bit collapse we found and the two largest 4-bit losses, and on the \nHealthy{} models that were not collapsing costs \CorrHealthyMean{} on average (\CorrHealthyWorst{} to \CorrHealthyBest{}); \cref{tab:census} in the appendix lists the counts.
+
+\paragraph{What remains open.}
+We cannot derive the amplification.
+It is not a fragility of the full-precision network, which tolerates a synthetic perturbation along $\sinkdir$ at four times the lesion's amplitude; not the weights of layers 2 to 4, which can be swapped between the collapsing and the healthy checkpoint without changing either outcome; and not an accumulation over the response, whose tokens are barely affected.
+In the short-document solution the template-token error is already ten times larger at the input of layer 3 than in the window solution, and this growth happens only there.
+The amplification is a distributed property of the whole short-document GPTQ solution; localising it is future work.
+
+\paragraph{Limitations.}
+Natural collapses are rare, and the condition that makes a lesion fatal is demonstrated by transplants, not derived.
+The corrected objective lowers Llama's MMLU by several points and recovers GSM8K only partly.
+Quantisation is simulated; the quantisers covered are those with an input-side curvature or a token-averaged block loss, not lattice methods; the census stops at 32B.
+About thirty pre-registered predictions failed (\cref{app:negative}), among them that collapse could be predicted from the lesion's size, induced by injecting its direction, or localised to the layers where the error first grows; the account that remains is the one that survived them.
+
+\paragraph{Conclusion.}
+The layer-wise reconstruction objective is not a neutral proxy for the loss.
+In models with an attention sink it is owned, at one layer, by a token whose output the loss ignores, and the compensation step converts that blind spot into a one-directional error on the tokens the loss depends on; the error is a matrix that can be excised and transplanted, its direction and victims follow from \cref{thm:rankone}, the remedies found by trial are instances of \cref{cor:shape}(iii), and restoring the output side repairs every collapse we found.
+In practice: validate quantised instruction-tuned models on free generation; if an early down-projection is sink-dominated, which one forward pass reveals, calibrate with \cref{eq:corrected} or with chat-formatted text, and compare against RTN at 4 bits as well as at 3.

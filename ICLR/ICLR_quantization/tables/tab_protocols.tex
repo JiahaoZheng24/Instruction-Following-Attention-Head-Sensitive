@@ -1,0 +1,19 @@
+\begin{table}[t]
+\caption{Calibration protocols. All use 128 samples; they differ in how the text is cut, and therefore in the share of the curvature that the beginning-of-sequence token receives.}
+\label{tab:protocols}
+\begin{center}
+\small
+\begin{tabular}{lllll}
+\toprule
+Protocol & Corpus & Sample & Tokens / sample & Default in \\
+\midrule
+short-document & C4        & one document, no concatenation & 420 (mean) & GPTQModel, LLM Compressor \\
+c4win          & C4        & random 2,048-token window      & 2,048      & GPTQ reference code \\
+Pile           & Pile      & random 2,048-token window      & 2,048      & AutoRound \\
+WikiText       & WikiText-2 & random 2,048-token window     & 2,048      & \\
+c4chat         & C4        & one document in the chat template & 430     & \\
+UltraChat      & UltraChat & one conversation               & 2,048      & \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

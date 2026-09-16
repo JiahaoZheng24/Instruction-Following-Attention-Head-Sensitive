@@ -1,0 +1,26 @@
+\begin{table}[t]
+\caption{What each repair costs (3 bits, short-document calibration). Re-rounding needs the diagnosis of \cref{sec:lesion}; damping $\rho=5$ needs a per-model search; the corrected objective needs one backward pass per calibration sample.}
+\label{tab:downstream}
+\begin{center}
+\small
+\begin{tabular}{llcccc}
+\toprule
+Model & Arm & IFEval & GSM8K & MMLU & PPL \\
+\midrule
+\multirow{5}{*}{Llama-3.1-8B}
+ & fp16                              & \LfpIF{}       & \LfpGSM{}       & \LfpMMLU{}       & \LfpPPL{} \\
+ & GPTQ                              & \LgptqIF{}     & \LgptqGSM{}     & \LgptqMMLU{}     & \LgptqPPL{} \\
+ & sink down-projections re-rounded  & \LzeroBitIF{}  & \LzeroBitGSM{}  & \LzeroBitMMLU{}  & \LzeroBitPPL{} \\
+ & damping $\rho=5$                  & \LdampFiveIF{} & \LdampFiveGSM{} & \LdampFiveMMLU{} & \LdampFivePPL{} \\
+ & corrected objective               & \LcorrIF{}     & \LcorrGSM{}     & \LcorrMMLU{}     & \LcorrPPL{} \\
+\midrule
+\multirow{5}{*}{Qwen2.5-14B}
+ & fp16                              & \QfpIF{}       & \QfpGSM{}       & \QfpMMLU{}       & \QfpPPL{} \\
+ & GPTQ                              & \QgptqIF{}     & \QgptqGSM{}     & \QgptqMMLU{}     & \QgptqPPL{} \\
+ & sink down-projection re-rounded   & \QoneMatrixIF{} & \QzeroBitGSM{} & \QzeroBitMMLU{}  & \QzeroBitPPL{} \\
+ & damping $\rho=5$                  & \QdampFiveIF{} & \QdampFiveGSM{} & \QdampFiveMMLU{} & \QdampFivePPL{} \\
+ & corrected objective               & \QcorrIF{}     & \QcorrGSM{}     & \QcorrMMLU{}     & \QcorrPPL{} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

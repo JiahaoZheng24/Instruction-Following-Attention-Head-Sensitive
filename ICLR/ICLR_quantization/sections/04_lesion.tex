@@ -1,0 +1,30 @@
+\section{The lesion}
+\label{sec:lesion}
+We call the concentrated part of the damage the \emph{lesion} and characterise it by excising it, measuring its geometry and transplanting it; \cref{tab:lesion,tab:transplant} in the appendix list every arm.
+
+\paragraph{Where it is.}
+Comparing hidden states of the collapsed and the full-precision Llama model position by position singles out one position and one depth: at the output of layer 2, the relative error at position \LlesionPos{}, the token \texttt{<|end\_header\_id|>} that closes the chat header, is \LposErr{}, against \LposErrRest{} elsewhere; for Qwen it is \QsinkTok{} at the output of layer 5 (\QposErr{}).
+These are the positions where the attention sink forms, and the matrix that writes the sink state is the MLP down-projection of the sink-forming layer, layer 1 for Llama and layer \QlesionLayer{} for Qwen.
+Re-rounding that one matrix with RTN, with the other 223 quantised matrices of Llama untouched, raises IFEval from \LgptqIF{} to \LoneMatrixIF{}; for Qwen, from \QgptqIF{} to \QoneMatrixIF{}.
+The repair adds no bits; it removes the compensation, so the damage is in what the OBS step did, not in the precision.
+Keeping the attention projections of the first three layers at full precision does not help (\LearlyAttnIF{}), nor does keeping the five largest rows of the matrix (\LswRowsIF{}).
+
+\paragraph{What it looks like.}
+At this matrix the input at the \bos{} position has norm \LbosNorm{} against \LrestNorm{} elsewhere, and \bos{} contributes a share \LAbos{} (Llama) and \QAbos{} (Qwen) of $\operatorname{tr}\hess$.
+In the quantised matrix, the linear error on template tokens is \LtplErrGPTQ{} for GPTQ against \LtplErrRTN{} for RTN, \LrowShare{} of the error sits in row \LsinkRow{}, the super-weight row of this model \citep{yu2024superweight}, and the largest compensated entry is \LmaxQ{} where the original matrix has \LmaxW{}: weights were pushed past their group range and clipped.
+In the activations the error is one direction: with $\sinkdir$ the \bos{} hidden state after this layer, the difference between collapsed and full-precision states has cosine \LcosU{} with $\sinkdir$ at the lesion position; along a prompt it is largest on template and newline tokens (\LtplTokErr{} against \LordTokErr{} for ordinary tokens; Qwen \QnlTokErr{} against \QordTokErr{}) and smallest on the response (\LrespTokErr{}).
+The damage is written into the matrix along the \bos{} pattern and read out wherever a token overlaps that pattern (\cref{fig:lesion}); \cref{sec:mechanism} derives both facts.
+\begin{figure}[t]
+\begin{center}
+\fig{fig2_lesion}{0.95\linewidth}
+\end{center}
+\caption{Anatomy of the lesion (Llama-3.1-8B-Instruct). (a) Row-wise error of the sink-forming down-projection after GPTQ and after RTN. (b) Relative hidden-state error by token class along an IFEval prompt and response. (c) Cosine of the hidden-state error with $\sinkdir$ by position. \todo{plot from runs/stats/f-l-3b and runs/sink/f\_l\_artifact.csv}}
+\label{fig:lesion}
+\end{figure}
+
+\paragraph{Necessary, not sufficient.}
+Because the lesion is a matrix, its sufficiency can be tested by copying it into other networks.
+Inside the full-precision network it costs almost nothing (\TPfp{}); inside the RTN network five points (\TPrtn{}); inside the window-calibrated GPTQ network eight (\TPcwin{}).
+Only inside the rest of the short-document GPTQ solution is it fatal, and there any lesion is: the window checkpoint's version of the matrix, harmless in its own network, collapses the short-document network to \TPshort{}.
+The protocol dependence therefore lives not in the lesion but in the remainder of the quantised network, the \emph{background}, and it is a property of that solution as a whole: replacing layers 2 to 4 of the collapsed network by their window-calibrated counterparts does not restore it (\TPlayers{}), and the reverse does not break the window network (\TPrev{}).
+Collapse needs a lesion of the kind derived next and a background that amplifies it; the first we derive and repair, the second we can only demonstrate (\cref{sec:universality}).

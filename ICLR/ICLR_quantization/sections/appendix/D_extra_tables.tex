@@ -1,0 +1,17 @@
+\section{Additional results}
+\label{app:extra}
+\input{tables/tab_collapse.tex}
+\input{tables/tab_protocols.tex}
+\input{tables/tab_protocol_results.tex}
+\input{tables/tab_methods.tex}
+\input{tables/tab_lesion.tex}
+\input{tables/tab_transplant.tex}
+\input{tables/tab_downstream.tex}
+\input{tables/tab_multiif.tex}
+\input{tables/tab_census.tex}
+\todo{D.1 Full census: every model with fp16, RTN3, GPTQ3 and corrected-objective IFEval under the short-document protocol, and GPTQ3 under c4win.}
+\todo{D.2 Blind-spot measurements per model: $A_{\bos}$, $G_{\bos}$, $A\!\cdot\!G_{\bos}$, sink layer, and the value of $\kappa=\vx_0^\top\mM^{-1}\vx_0$ of \cref{thm:rankone}.}
+\todo{D.3 4-bit census: GPTQ4, RTN4 and corrected GPTQ4 per model.}
+\todo{D.4 Per-position error profiles (the data behind \cref{sec:lesion}) for Llama and Qwen, and the same profiles for the repaired checkpoints.}
+\todo{D.5 Other quantisers under the window protocols; AutoRound anatomy (single-block error at Qwen layer 6).}
+\todo{D.6 Seed replicates for the headline arms.}

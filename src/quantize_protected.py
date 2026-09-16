@@ -193,6 +193,15 @@ def capture_layer0_inputs(model, tok, texts, max_len):
             self.mod = mod
 
         def forward(self, hidden_states, **kw):
+            # W71 fix: never carry a KV cache into the layer-wise loop. With a
+            # DynamicCache in kw, every layer(inps[j]) call appended K/V for that
+            # layer, the second call (propagation) attended the stale first-call
+            # K/V (sdpa is_causal, top-left aligned), and memory grew linearly
+            # with depth (Q14 x1024 OOM at layer 29/48, W70).
+            kw.pop("past_key_values", None)
+            kw.pop("past_key_value", None)
+            if "use_cache" in kw:
+                kw["use_cache"] = False
             inps.append(hidden_states)
             kwargs_list.append(kw)
             raise RuntimeError("stop")
@@ -211,7 +220,7 @@ def capture_layer0_inputs(model, tok, texts, max_len):
         ids = tok(t, return_tensors="pt", truncation=True,
                   max_length=max_len).to(model.device)
         try:
-            model(**ids)
+            model(**ids, use_cache=False)
         except RuntimeError:
             pass
     layers[0] = layers[0].mod

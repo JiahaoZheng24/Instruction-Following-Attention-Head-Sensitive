@@ -1,0 +1,15 @@
+\begin{table}[t]
+\caption{Multi-IF, three turns (turn 1 / 2 / 3, prompt-strict), 3 bits, short-document calibration.}
+\label{tab:multiif}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Model & fp16 & GPTQ & RTN & corrected objective \\
+\midrule
+Llama-3.1-8B & \LfpMIF{} & \LgptqMIF{} & \LrtnMIF{} & \LcorrMIF{} \\
+Qwen2.5-14B  & \QfpMIF{} & \QgptqMIF{} & \QrtnMIF{} & \QcorrMIF{} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

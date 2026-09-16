@@ -1,0 +1,23 @@
+\begin{table}[t]
+\caption{Excising the lesion. Starting from the collapsed 3-bit GPTQ checkpoint, one matrix is re-rounded with RTN (no calibration, no extra bits) or a set of matrices is kept at full precision.}
+\label{tab:lesion}
+\begin{center}
+\small
+\begin{tabular}{llc}
+\toprule
+Model & Change to the collapsed checkpoint & IFEval \\
+\midrule
+\multirow{5}{*}{Llama-3.1-8B-Instruct}
+ & none                                                    & \LgptqIF{} \\
+ & sink-forming down-projection (layer 1) re-rounded       & \LoneMatrixIF{} \\
+ & down-projections of layers 0--1 re-rounded             & \LzeroBitIF{} \\
+ & attention projections of layers 0--2 at fp16 (control) & \LearlyAttnIF{} \\
+ & five largest rows of the lesion matrix at fp16 (control) & \LswRowsIF{} \\
+\midrule
+\multirow{2}{*}{Qwen2.5-14B-Instruct}
+ & none                                                    & \QgptqIF{} \\
+ & sink-forming down-projection (layer \QlesionLayer{}) re-rounded & \QoneMatrixIF{} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

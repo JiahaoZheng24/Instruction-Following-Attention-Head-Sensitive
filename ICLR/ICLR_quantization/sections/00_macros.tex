@@ -1,0 +1,18 @@
+% Paper-specific macros. Keep notation consistent with THEORY_BRIEF_v3 and RESULTS_v3.
+\newcommand{\ifeval}{IFEval}
+\newcommand{\gptq}{GPTQ}
+\newcommand{\rtn}{RTN}
+\newcommand{\bos}{\texttt{BOS}}
+\newcommand{\hess}{\mH}                       % calibration Hessian H = X X^T
+\newcommand{\hessw}{\widetilde{\mH}}          % corrected Hessian sum_t w_t x_t x_t^T
+\newcommand{\gsens}{g_t}                      % output-side sensitivity ||dL/dy_t||^2
+\newcommand{\wtok}{w_t}                       % token weight g_t / ||x_t||^2
+\newcommand{\sinkdir}{\vu}                    % BOS / sink direction
+\newcommand{\vh}{\boldsymbol{h}}              % residual-stream vector (not in math_commands)
+\providecommand{\mM}{\boldsymbol{M}}          % ordinary-token curvature (defined here if math_commands lacks it)
+\providecommand{\vv}{\boldsymbol{v}}
+\providecommand{\vw}{\boldsymbol{w}}
+\newcommand{\downproj}{\texttt{down\_proj}}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+% \fig{name}{width}: includes figures/name.pdf if it exists, otherwise a labelled placeholder box
+\newcommand{\fig}[2]{\IfFileExists{figures/#1.pdf}{\includegraphics[width=#2]{#1}}{\fbox{\parbox[c][4cm][c]{#2}{\centering\textcolor{red}{TODO figure \texttt{\detokenize{#1}}}}}}}

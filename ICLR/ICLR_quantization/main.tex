@@ -1,0 +1,89 @@
+% Main file.  Compile:  pdflatex main && bibtex main && pdflatex main && pdflatex main
+% Style files (iclr2027_conference.sty/.bst, fancyhdr.sty, natbib.sty) are untouched.
+% Body text lives in sections/, tables in tables/, artwork in figures/.
+\documentclass{article} % For LaTeX2e
+\usepackage{iclr2027_conference,times}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+
+% --- added for this paper (no formatting parameters of the style are changed) ---
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{booktabs}          % \toprule \midrule \bottomrule in tables/
+\usepackage{multirow}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{xcolor}
+\usepackage[capitalise,nameinlink]{cleveref}   % must load after hyperref
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{assumption}{Assumption}
+\input{sections/00_macros.tex}
+\input{sections/00_numbers.tex}
+% --------------------------------------------------------------------------------
+
+% Title candidates (pick one before 2026-09-18):
+%  1. One Token Owns the Hessian: Why Layer-wise Quantisation Silently Breaks Instruction Following
+%  2. The Missing Half of the Curvature: A Silent Failure of GPTQ on Instruction-Tuned Models
+%  3. Attention Sinks Blind Layer-wise Quantisation to the Tokens That Matter
+\title{One Token Owns the Hessian: \\ Why Layer-wise Quantisation Silently Breaks Instruction Following}
+
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the \iclrfinalcopy macro remains commented out below.
+% Non-anonymous submissions will be rejected without review.
+
+\author{Antiquus S.~Hippocampus, Natalia Cerebro \& Amelie P. Amygdale \thanks{ Use footnote for providing further information
+about author (webpage, alternative address)---\emph{not} for acknowledging
+funding agencies.  Funding acknowledgements go at the end of the paper.} \\
+Department of Computer Science\\
+Cranberry-Lemon University\\
+Pittsburgh, PA 15213, USA \\
+\texttt{\{hippo,brain,jen\}@cs.cranberry-lemon.edu} \\
+\And
+Ji Q. Ren \& Yevgeny LeNet \\
+Department of Computational Neuroscience \\
+University of the Witwatersrand \\
+Joburg, South Africa \\
+\texttt{\{robot,net\}@wits.ac.za} \\
+\AND
+Coauthor \\
+Affiliation \\
+Address \\
+\texttt{email}
+}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+%\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
+\begin{document}
+
+\maketitle
+
+\input{sections/00_abstract.tex}
+
+\input{sections/01_introduction.tex}
+\input{sections/02_background.tex}
+\input{sections/03_phenomenon.tex}
+\input{sections/04_lesion.tex}
+\input{sections/05_mechanism.tex}
+\input{sections/06_corrected_objective.tex}
+\input{sections/07_generality_discussion.tex}
+
+\input{sections/10_statements.tex}
+
+\bibliography{iclr2027_conference}
+\bibliographystyle{iclr2027_conference}
+
+\appendix
+\input{sections/appendix/A_proofs.tex}
+\input{sections/appendix/B_protocols.tex}
+\input{sections/appendix/C_negative_results.tex}
+\input{sections/appendix/D_extra_tables.tex}
+
+\end{document}

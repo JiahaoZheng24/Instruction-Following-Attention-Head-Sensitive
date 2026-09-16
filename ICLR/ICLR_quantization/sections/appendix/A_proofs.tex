@@ -1,0 +1,22 @@
+\section{Proofs and extensions}
+\label{app:proofs}
+\todo{This appendix is the collaborator's. \cref{sec:mechanism} proves \cref{thm:rankone}(a)--(c) and \cref{prop:tokenlevel}(a)--(c) in the main text; what remains is listed below, one subsection per item. Notation is that of \cref{sec:mechanism}.}
+Measured values at the sink-forming layer of the models in \cref{sec:phenomenon}: $A_{\bos}\ge\LAbos{}$, $G_{\bos}\le\GbosMax{}$, and $\kappa=\vx_0^\top\mM^{-1}\vx_0$ \todo{value from runs/stats/f-l-3b; expected $\gg10^2$} (\cref{app:extra}).
+
+\subsection{\cref{lem:twosides}}
+\todo{Gauss--Newton form of the Hessian in $\operatorname{vec}\mW$; $\gsens$ as the scale of a diagonal $\mG_t$; the measurement (one backward pass per calibration sample with the summed token cross-entropy, hooks on the layer input and on the gradient of its output).}
+
+\subsection{\cref{lem:rmsnorm}}
+\todo{Jacobian of $\vh\mapsto\vh/\operatorname{rms}(\vh)$, its operator norm, the residual path that bypasses the normalisation, and why the attenuation is by $1/\operatorname{rms}$ relative to ordinary positions \citep{chen2026gradientsinks}.}
+
+\subsection{\cref{thm:rankone}: act-order accumulation and general $\mM$}
+\todo{(1) Successive steps: after column $j$ is rounded and the update applied, the next column's rounding error includes the update; show that under act-order (largest $x_{0j}^2$ first) the accumulated update over the sink columns stays in $\operatorname{span}\{\vx_0\}$ up to a controlled remainder, and give the remainder. (2) General $\mM$: bound the difference between \cref{eq:exact} and the $\mM=\lambda\mI$ form in terms of $\kappa$ and the off-diagonal mass of $\mM^{-1}$; the deterministic direction becomes $\vv=\mM^{-1}\vx_0$ and the overlap becomes $\vx_0^\top\mM^{-1}\vx_t$. (3) The order of $\eta^{(r)}_t=-\sum_j\delta^{(r)}_jx_{tj}$ for a grid step $\Delta$: $\|\eta_t\|\sim\Delta\|\vx_t\|/\sqrt{12}$ per row, which is the floor observed for positions with small overlap.}
+
+\subsection{\cref{cor:shape}(iii): the remedies as one table}
+\todo{For damping, token normalisation, chat-formatted calibration, window sampling and re-rounding: the effect on $\kappa$ (or on the update directly), and the residual failure case observed in \cref{sec:corrected}.}
+
+\subsection{\cref{prop:tokenlevel}(c): approximation error}
+\todo{State \cref{eq:corrected} as an approximation of $\sum_t\vx_t\vx_t^\top\otimes\mG_t$ with an explicit error term (diagonal approximation of $\mG_t$ and per-token whitening), and remark that a weight on the token axis is the only place in \cref{eq:layerwise} where the output side can enter without changing the column-wise update, which is the boundary with \citet{lee2026kronq} and \citet{kim2025guidedquant}.}
+
+\subsection{Scope}
+The results are local to one matrix; they do not address the amplification of the lesion by the rest of the network, which \cref{sec:lesion} establishes by transplantation.

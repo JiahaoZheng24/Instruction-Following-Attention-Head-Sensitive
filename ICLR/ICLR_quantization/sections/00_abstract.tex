@@ -1,0 +1,13 @@
+\begin{abstract}
+Quantised instruction-tuned language models are usually validated with perplexity and multiple-choice accuracy.
+We show that these metrics can miss a complete loss of instruction following.
+At 3 bits, GPTQ under the calibration protocol that two major libraries use by default lowers IFEval from 0.77 to 0.15 on Llama-3.1-8B-Instruct and from 0.82 to 0.41 on Qwen2.5-14B-Instruct, below round-to-nearest (0.57 and 0.70), while perplexity and MMLU look normal.
+The failure is rare (2 of 32 models) and depends on how calibration text is sampled.
+We trace it to one weight matrix: the MLP down-projection of the early layer in which the attention sink forms.
+Its calibration Hessian is effectively rank-one, dominated by the beginning-of-sequence token, whereas the loss is insensitive to that token's output and sensitive to the prompt-template tokens that attend to it.
+The layer-wise objective, which uses only the input side, therefore optimises for the one token that does not matter.
+Under a rank-one Hessian the GPTQ update has a closed form that predicts the matrix, row and direction of the damage.
+The damaged matrix is harmless inside the full-precision model; collapse requires the rest of the quantised network.
+Weighting each calibration token by its output-side sensitivity divided by its input energy restores the missing curvature: it eliminates all observed 3-bit collapses and stays within 2.7 percentage points of round-to-nearest on 29 models, at an average cost of 0.6 points on non-collapsing models.
+The curvature mismatch is present in all 26 models with an attention sink and absent in the two without.
+\end{abstract}

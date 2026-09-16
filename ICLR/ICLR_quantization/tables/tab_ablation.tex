@@ -1,0 +1,19 @@
+\begin{table}[t]
+\caption{The corrected objective and its two halves (IFEval, 3 bits). Token normalisation is $\wtok=1/\|\vx_t\|^2$; output weighting is $\wtok=\gsens$; the cap clamps $\gsens$ at one hundred times its median. Parentheses: a second calibration seed.}
+\label{tab:ablation}
+\begin{center}
+\small
+\begin{tabular}{llcccccc}
+\toprule
+Model & Protocol & GPTQ & RTN & token norm. & output weight. & $\gsens/\|\vx_t\|^2$ & capped \\
+\midrule
+Llama-3.1-8B  & short-doc. & \LgptqIF{} & \LrtnIF{} & \LtnormIF{} & \LgonlyIF{}    & \LcorrIF{} (\LcorrSeedIF{}) & \LcapIF{} \\
+Llama-3.1-8B  & Pile win.  & \LpileIF{} & \LrtnIF{} & --          & \LpileGonlyIF{} & \LpileCorrIF{}             & \numtodo{.357} \\
+Qwen2.5-14B   & short-doc. & \QgptqIF{} & \QrtnIF{} & \QtnormIF{} & \QgonlyIF{}    & \QcorrIF{} (\QcorrSeedIF{}) & \QcapIF{} \\
+Qwen2.5-14B   & Pile win.  & \QpileIF{} & \QrtnIF{} & --          & --             & \QpileCorrIF{}             & -- \\
+Mistral-7B-v0.3 & C4 win.  & \MgptqIF{} & \MrtnIF{} & \MtnormIF{} & \MgonlyIF{}    & \McorrIF{} (\McorrSeedIF{}) & -- \\
+Mistral-Nemo  & short-doc. & \NgptqIF{} & \NrtnIF{} & \NtnormIF{} & \NgonlyIF{}    & \NcorrIF{}                 & -- \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
