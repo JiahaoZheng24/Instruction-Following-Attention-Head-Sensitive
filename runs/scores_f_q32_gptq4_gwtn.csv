@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_q32_gptq4_gwtn,0.7819,0.8477,0.8152,0.8729,0.8294

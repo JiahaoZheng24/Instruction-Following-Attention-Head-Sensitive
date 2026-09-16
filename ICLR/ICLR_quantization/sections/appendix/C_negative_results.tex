@@ -13,7 +13,8 @@ Predicted & Observed & Ruled out \\
 \midrule
 Collapse is predictable from the template-position error of the lesion (a threshold) & Ranking across 16 unseen models (Spearman $-0.50$), no threshold & A lesion-size criterion \\
 Injecting the lesion's direction $\sinkdir$ into a healthy model at the lesion's amplitude collapses it & No collapse up to four times the amplitude & Fragility of the full-precision network \\
-The amplification sits in layers 2--4, where the error first grows & Whole-layer transplants of layers 2--4 change neither outcome & A layer-local background \\
+The amplification sits in layers 2--4, where the error first grows & Whole-layer transplants of layers 2--4 change neither outcome (pre-correction loop) & A layer-local background \\
+The protocol dependence lives in the background, not the lesion: a foreign lesion is tolerated by the window-calibrated network & Under the corrected loop the foreign lesion collapses it (\TPcwin{}) & Separating lesion from background by transplantation between GPTQ checkpoints \\
 The lesion accumulates along the response & Response tokens barely affected & Damage during generation \\
 Capping the output weights keeps the repair & Every capped arm loses the repair & A robust-statistics reading of $\gsens$ \\
 Output weighting alone repairs all three collapses & Not Llama & Sufficiency of $\gsens$ \\

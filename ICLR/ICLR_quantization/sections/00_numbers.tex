@@ -1,125 +1,125 @@
 % ---------------------------------------------------------------------------
-% Every number quoted in the paper lives here, one macro per value, with the
-% run tag it comes from.  STATUS: values are from the pre-fix code path
-% (RESULTS_v3, 2026-09-14) and are REPLACED WHOLESALE by the W72 re-run
-% (tags f_<model>_<arm>, jobs/w72*.sh).  Do not edit numbers in the sections.
+% Every number quoted in the paper lives here, one macro per value, with its
+% run tag.  STATUS 2026-09-16: values are from the FIXED code path (W72a-d, W73,
+% W74; tags f_<model>_<arm>).  Values marked PENDING come from W75 (4 cells) or
+% are unaffected fp16 / RTN / library-quantiser measurements from earlier batches.
 % Convention: IFEval = mean of prompt/instruction x strict/loose (avg4), 541 prompts.
 % ---------------------------------------------------------------------------
-\newcommand{\numtodo}[1]{\textcolor{red}{#1}}   % wraps values that W72 has not yet produced
+\newcommand{\numtodo}[1]{\textcolor{red}{#1}}
 
 % ---- Llama-3.1-8B-Instruct : IFEval -------------------------------------
-\newcommand{\LfpIF}{.768}          % qbase_llama_fp16
-\newcommand{\LrtnIF}{.565}         % rtn3l_none
-\newcommand{\LgptqIF}{.150}        % v2l_none        -> f_l_none
-\newcommand{\LgptqLibIF}{.148}     % v2l_c4x1024_d10 (GPTQModel README config, fixed code)
-\newcommand{\LcorrIF}{.651}        % v2l_gwtn        -> f_l_gwtn
-\newcommand{\LcorrSeedIF}{.638}    % v2l_gwtn_cs1
-\newcommand{\LgptqFourIF}{.745}    % v2l4_none
+\newcommand{\LfpIF}{.768}          % qbase_llama_fp16 (fp16, unaffected)
+\newcommand{\LrtnIF}{.565}         % rtn3l_none (RTN, unaffected)
+\newcommand{\LgptqIF}{.155}        % f_l_none
+\newcommand{\LgptqLibIF}{.148}     % v2l_c4x1024_d10 (GPTQModel README config, fixed code, W70)
+\newcommand{\LcorrIF}{.638}        % f_l_gwtn
+\newcommand{\LcorrSeedIF}{.669}    % f_l_gwtn_cs1
+\newcommand{\LgptqFourIF}{.756}    % f_l_gptq4
 \newcommand{\LrtnFourIF}{.760}     % u4_l_rtn4
-\newcommand{\LcorrFourIF}{.734}    % v2l4_gwtn
-\newcommand{\LcwinIF}{.643}        % v2l_c4win
-\newcommand{\LpileIF}{.402}        % v2l_pile   (W71 fixed-code value .620; W72 decides)
-\newcommand{\LwikiIF}{.624}        % v2l_calwiki
-\newcommand{\LcchatIF}{.644}       % v2l_c4chat
-\newcommand{\LuchatIF}{.669}       % v2l_calchat (ultrachat)
-\newcommand{\LtnormIF}{.648}       % v2l_tnorm
-\newcommand{\LgonlyIF}{.430}       % v2l_gw
-\newcommand{\LcapIF}{.159}         % v2l_gwcap
-\newcommand{\LpileCorrIF}{.649}    % v2l_pile_gwtn
-\newcommand{\LpileGonlyIF}{.139}   % v2l_pile_gw
-\newcommand{\LdampFiveIF}{.642}    % v2l_damp5
-\newcommand{\LdampPtTwoIF}{.189}   % v2l_damp0p2
-\newcommand{\LoneMatrixIF}{.630}   % L1 down_proj re-rounded (W36)
-\newcommand{\LzeroBitIF}{.650}     % v2l_rtn01down (blocks 0-1 down_proj)
-\newcommand{\LearlyAttnIF}{.158}   % v2l_early
-\newcommand{\LswRowsIF}{.204}      % v2l_swrows5
-\newcommand{\LrotIF}{.641}         % v2l_rot_none
-\newcommand{\LawqIF}{.597}         % awq3l_none
-\newcommand{\LgptaqIF}{.150}       % gptaq3_llama
-\newcommand{\LhqqIF}{.599}         % m_l_hqq3
-\newcommand{\LarIF}{.460}          % m_l_ar3b (AutoRound, short-c4)
+\newcommand{\LcorrFourIF}{.762}    % f_l_gptq4_gwtn
+\newcommand{\LcwinIF}{.645}        % f_l_c4win
+\newcommand{\LpileIF}{.618}        % f_l_pile
+\newcommand{\LwikiIF}{.564}        % f_l_wiki
+\newcommand{\LcchatIF}{.644}       % f_l_c4chat
+\newcommand{\LuchatIF}{.673}       % f_l_ultrachat
+\newcommand{\LtnormIF}{.636}       % f_l_tnorm
+\newcommand{\LgonlyIF}{.329}       % f_l_gw
+\newcommand{\LcapIF}{.160}         % f_l_gwcap
+\newcommand{\LpileCorrIF}{.626}    % f_l_pile_gwtn
+\newcommand{\LpileGonlyIF}{.140}   % f_l_pile_gw
+\newcommand{\LdampFiveIF}{.662}    % f_l_damp5
+\newcommand{\LdampPtTwoIF}{.169}   % f_l_damp0p2
+\newcommand{\LoneMatrixIF}{.622}   % f_l_rtn1down (W75)
+\newcommand{\LzeroBitIF}{.632}     % f_l_rtn01down (down_proj of blocks 0-1)
+\newcommand{\LearlyAttnIF}{.138}   % f_l_early
+\newcommand{\LswRowsIF}{.174}      % f_l_swrows5 (W75)
+\newcommand{\LrotIF}{.648}         % f_l_rot
+\newcommand{\LawqIF}{.623}         % f_l_awq
+\newcommand{\LgptaqIF}{.150}       % gptaq3_llama (GPTQModel package, unaffected)
+\newcommand{\LhqqIF}{.599}         % m_l_hqq3 (HQQ package, unaffected)
+\newcommand{\LarIF}{.460}          % m_l_ar3b (AutoRound package, unaffected)
 \newcommand{\LarWinIF}{.722}       % m_l_ar3c4win
 \newcommand{\LarPileIF}{.716}      % m_l_ar3pile
-\newcommand{\LhqqFourIF}{.784}     % m_l4_hqq
-\newcommand{\LarFourIF}{.757}      % m_l4_ar
 % ---- Llama : other metrics ------------------------------------------------
-\newcommand{\LfpGSM}{.843}\newcommand{\LgptqGSM}{.002}\newcommand{\LrtnGSM}{.280}
-\newcommand{\LzeroBitGSM}{.590}\newcommand{\LdampFiveGSM}{.583}\newcommand{\LcorrGSM}{.498}
-\newcommand{\LfpMMLU}{.683}\newcommand{\LgptqMMLU}{.561}\newcommand{\LzeroBitMMLU}{.568}
-\newcommand{\LdampFiveMMLU}{.533}\newcommand{\LcorrMMLU}{.522}
-\newcommand{\LfpPPL}{7.2}\newcommand{\LgptqPPL}{59.2}\newcommand{\LzeroBitPPL}{10.0}
-\newcommand{\LdampFivePPL}{23.0}\newcommand{\LcorrPPL}{12.3}
-\newcommand{\LfpMIF}{.722 / .559 / .409}\newcommand{\LgptqMIF}{.086 / .008 / .001}
-\newcommand{\LrtnMIF}{.485 / .222 / .094}\newcommand{\LcorrMIF}{.555 / .314 / .151}
-% ---- Llama : anatomy ------------------------------------------------------
-\newcommand{\LbosNorm}{481}        % input norm of L1 down_proj at BOS
-\newcommand{\LrestNorm}{1--2.5}    % other positions
-\newcommand{\LAbos}{.998}          % share of trace(H) from BOS
-\newcommand{\LGbos}{.000}          % share of output-side sensitivity at BOS
-\newcommand{\LtplErrGPTQ}{2.56}\newcommand{\LtplErrRTN}{0.28}   % linear error on template tokens
-\newcommand{\LrowShare}{26\%}      % share of matrix error in row 788
+\newcommand{\LfpGSM}{.843}\newcommand{\LgptqGSM}{.008}\newcommand{\LrtnGSM}{.280}
+\newcommand{\LzeroBitGSM}{.632}\newcommand{\LdampFiveGSM}{.604}\newcommand{\LcorrGSM}{.548}\newcommand{\LgptqFourGSM}{.816}
+\newcommand{\LfpMMLU}{.683}\newcommand{\LgptqMMLU}{.524}\newcommand{\LrtnMMLU}{.416}\newcommand{\LzeroBitMMLU}{.556}
+\newcommand{\LdampFiveMMLU}{.543}\newcommand{\LcorrMMLU}{.514}\newcommand{\LgptqFourMMLU}{.659}
+\newcommand{\LfpPPL}{7.2}\newcommand{\LgptqPPL}{22.4}\newcommand{\LrtnPPL}{15.5}\newcommand{\LzeroBitPPL}{9.9}
+\newcommand{\LdampFivePPL}{21.0}\newcommand{\LcorrPPL}{12.4}\newcommand{\LgptqFourPPL}{9.7}
+\newcommand{\LfpMIF}{.722 / .559 / .409}\newcommand{\LgptqMIF}{.079 / .010 / .001}
+\newcommand{\LrtnMIF}{.485 / .222 / .094}\newcommand{\LcorrMIF}{.513 / .284 / .142}\newcommand{\LgptqFourMIF}{.714 / .517 / .353}
+\newcommand{\LfpMIFone}{.722}\newcommand{\LgptqMIFone}{.079}\newcommand{\LrtnMIFone}{.485}\newcommand{\LcorrMIFone}{.513}\newcommand{\LgptqFourMIFone}{.714}
+% ---- Llama : anatomy (runs/stats/f-l-3b, runs/sink/f_l_artifact.csv, runs/div_f_l_none.pos.csv)
+\newcommand{\LbosNorm}{475}        % input norm of L1 down_proj at BOS
+\newcommand{\LrestNorm}{1--3}      % other positions
+\newcommand{\LAbos}{.998}          % share of trace(H) from BOS (W59, fp16 measurement)
+\newcommand{\LGbos}{.000}
+\newcommand{\LtplErrGPTQ}{2.25}\newcommand{\LtplErrRTN}{0.43}   % linear error at template position 4, GPTQ vs RTN
+\newcommand{\LrowShare}{23\%}      % share of matrix error in row 788 (p4_toprow_share_gptq .232)
 \newcommand{\LsinkRow}{788}
-\newcommand{\LmaxQ}{6.8}\newcommand{\LmaxW}{0.62}
-\newcommand{\LcosU}{.90}           % cosine of the hidden-state error with the BOS direction at the lesion position
-\newcommand{\LposErr}{3.85}\newcommand{\LposErrRest}{0.65}   % relative error at position 4 vs others, layer-2 output
+\newcommand{\LmaxQ}{5.4}\newcommand{\LmaxW}{0.62}
+\newcommand{\LcosU}{.88}           % cosine of hidden-state error with the BOS direction at position 4
+\newcommand{\LposErr}{3.59}\newcommand{\LposErrRest}{0.58}   % relative error at position 4 vs ordinary positions, layer-2 output
 \newcommand{\LlesionPos}{4}
-\newcommand{\LtplTokErr}{1.34}\newcommand{\LordTokErr}{.62}\newcommand{\LrespTokErr}{.34}
-% ---- Llama : transplants --------------------------------------------------
-\newcommand{\TPfp}{.754}\newcommand{\TPrtn}{.520}\newcommand{\TPcwin}{.567}\newcommand{\TPshort}{.136}
-\newcommand{\TPqfp}{.649}
-\newcommand{\TPlayers}{.129 / .152 / .128 / .134}\newcommand{\TPrev}{.632}
+\newcommand{\LtplTokErr}{.97}\newcommand{\LordTokErr}{.56}\newcommand{\LrespTokErr}{.34}
+\newcommand{\LoverlapRatio}{2.5}   % top vs bottom overlap quintile error ratio (1.76 / 0.70)
+% ---- Llama : transplants (W72a 69-73) -------------------------------------
+\newcommand{\TPfp}{.764}\newcommand{\TPrtn}{.528}\newcommand{\TPcwin}{.174}\newcommand{\TPshort}{.152}
+\newcommand{\TPqfp}{.637}
 
 % ---- Qwen2.5-14B-Instruct -------------------------------------------------
-\newcommand{\QfpIF}{.820}\newcommand{\QrtnIF}{.697}\newcommand{\QgptqIF}{.412}
-\newcommand{\QgptqLibIF}{.435}     % v2q14_c4x1024_d10 (fixed code)
-\newcommand{\QcorrIF}{.728}\newcommand{\QcorrSeedIF}{.756}
-\newcommand{\QgptqFourIF}{.794}\newcommand{\QrtnFourIF}{.803}
-\newcommand{\QcwinIF}{.753}\newcommand{\QpileIF}{.291}\newcommand{\QwikiIF}{.197}
-\newcommand{\QcchatIF}{.772}\newcommand{\QuchatIF}{.772}
-\newcommand{\QtnormIF}{.720}\newcommand{\QgonlyIF}{.699}\newcommand{\QcapIF}{.224}\newcommand{\QpileCorrIF}{.738}
-\newcommand{\QdampFiveIF}{.786}\newcommand{\QdampPtOneIF}{.422}
-\newcommand{\QoneMatrixIF}{.751}   % L4 down_proj re-rounded
-\newcommand{\QrotIF}{.665}\newcommand{\QawqIF}{.678}\newcommand{\QgptaqIF}{.752}\newcommand{\QhqqIF}{.749}
+\newcommand{\QfpIF}{.820}\newcommand{\QrtnIF}{.697}\newcommand{\QgptqIF}{.426}
+\newcommand{\QgptqLibIF}{.435}     % v2q14_c4x1024_d10 (fixed code, W71)
+\newcommand{\QcorrIF}{.736}\newcommand{\QcorrSeedIF}{.730}
+\newcommand{\QgptqFourIF}{.809}\newcommand{\QrtnFourIF}{.803}
+\newcommand{\QcwinIF}{.766}\newcommand{\QpileIF}{.271}\newcommand{\QwikiIF}{.219}
+\newcommand{\QcchatIF}{.774}\newcommand{\QuchatIF}{.770}
+\newcommand{\QtnormIF}{.758}\newcommand{\QgonlyIF}{.580}\newcommand{\QcapIF}{--}\newcommand{\QpileCorrIF}{.782}
+\newcommand{\QdampFiveIF}{.770}\newcommand{\QdampPtOneIF}{.482}
+\newcommand{\QoneMatrixIF}{.768}   % f_q14_l4down
+\newcommand{\QrotIF}{.709}\newcommand{\QawqIF}{.719}\newcommand{\QgptaqIF}{.752}\newcommand{\QhqqIF}{.749}
 \newcommand{\QarIF}{.181}\newcommand{\QarWinIF}{.787}\newcommand{\QarPileIF}{.793}
-\newcommand{\QfpGSM}{.926}\newcommand{\QgptqGSM}{.129}\newcommand{\QrtnGSM}{.817}
-\newcommand{\QzeroBitGSM}{.890}\newcommand{\QdampFiveGSM}{.892}\newcommand{\QcorrGSM}{.853}
-\newcommand{\QfpMMLU}{.799}\newcommand{\QgptqMMLU}{.735}\newcommand{\QzeroBitMMLU}{.732}
-\newcommand{\QdampFiveMMLU}{.745}\newcommand{\QcorrMMLU}{.724}
-\newcommand{\QfpPPL}{5.70}\newcommand{\QgptqPPL}{7.71}\newcommand{\QzeroBitPPL}{7.83}
-\newcommand{\QdampFivePPL}{7.62}\newcommand{\QcorrPPL}{7.88}
-\newcommand{\QfpMIF}{.812 / .566 / .409}\newcommand{\QgptqMIF}{.322 / .076 / .017}
-\newcommand{\QrtnMIF}{.647 / .349 / .163}\newcommand{\QcorrMIF}{.705 / .413 / .234}
-% turn-1 values for the collapse table
-\newcommand{\LfpMIFone}{.722}\newcommand{\LgptqMIFone}{.086}\newcommand{\LrtnMIFone}{.485}\newcommand{\LcorrMIFone}{.555}
-\newcommand{\QfpMIFone}{.812}\newcommand{\QgptqMIFone}{.322}\newcommand{\QrtnMIFone}{.647}\newcommand{\QcorrMIFone}{.705}
+\newcommand{\QfpGSM}{.926}\newcommand{\QgptqGSM}{.173}\newcommand{\QrtnGSM}{.817}
+\newcommand{\QzeroBitGSM}{.889}\newcommand{\QdampFiveGSM}{.880}\newcommand{\QcorrGSM}{.877}\newcommand{\QgptqFourGSM}{.933}
+\newcommand{\QfpMMLU}{.799}\newcommand{\QgptqMMLU}{.739}\newcommand{\QrtnMMLU}{.698}\newcommand{\QzeroBitMMLU}{.728}
+\newcommand{\QdampFiveMMLU}{.744}\newcommand{\QcorrMMLU}{.727}\newcommand{\QgptqFourMMLU}{.787}
+\newcommand{\QfpPPL}{5.70}\newcommand{\QgptqPPL}{7.66}\newcommand{\QrtnPPL}{9.26}\newcommand{\QzeroBitPPL}{7.81}
+\newcommand{\QdampFivePPL}{7.57}\newcommand{\QcorrPPL}{7.80}\newcommand{\QgptqFourPPL}{6.20}
+\newcommand{\QfpMIF}{.812 / .566 / .409}\newcommand{\QgptqMIF}{.354 / .106 / .021}
+\newcommand{\QrtnMIF}{.647 / .349 / .163}\newcommand{\QcorrMIF}{.680 / .452 / .266}\newcommand{\QgptqFourMIF}{.778 / .530 / .368}
+\newcommand{\QfpMIFone}{.812}\newcommand{\QgptqMIFone}{.354}\newcommand{\QrtnMIFone}{.647}\newcommand{\QcorrMIFone}{.680}\newcommand{\QgptqFourMIFone}{.778}
 \newcommand{\QAbos}{1.000}\newcommand{\QGbos}{.000}
-\newcommand{\QtplErrGPTQ}{536}\newcommand{\QtplErrRTN}{25}
-\newcommand{\QposErr}{3.96}\newcommand{\QlesionLayer}{4}\newcommand{\QsinkTok}{the first newline of the template}
+\newcommand{\QtplErrGPTQ}{519}\newcommand{\QtplErrRTN}{24}
+\newcommand{\QposErr}{3.92}\newcommand{\QlesionLayer}{4}\newcommand{\QsinkTok}{the first newline of the template}
 \newcommand{\QcosU}{.49}
-\newcommand{\QnlTokErr}{.95}\newcommand{\QordTokErr}{.17}
+\newcommand{\QnlTokErr}{.96}\newcommand{\QordTokErr}{.17}\newcommand{\QrespTokErr}{.15}
+\newcommand{\QoverlapRatio}{3.9}
 
 % ---- Mistral-7B-Instruct-v0.3 (c4win) and Mistral-Nemo -------------------
-\newcommand{\MgptqIF}{.172}\newcommand{\MrtnIF}{.420}\newcommand{\MtnormIF}{.192}
-\newcommand{\MgonlyIF}{.458}\newcommand{\McorrIF}{.449}\newcommand{\McorrSeedIF}{.406}\newcommand{\MshortIF}{.468}
-\newcommand{\MgptqFourIF}{.450}\newcommand{\McorrFourIF}{.534}
-\newcommand{\NgptqIF}{.476}\newcommand{\NrtnIF}{.524}\newcommand{\NtnormIF}{.502}\newcommand{\NgonlyIF}{.535}\newcommand{\NcorrIF}{.545}
+\newcommand{\MgptqIF}{.187}\newcommand{\MrtnIF}{.420}\newcommand{\MtnormIF}{.189}
+\newcommand{\MgonlyIF}{.475}\newcommand{\McorrIF}{.433}\newcommand{\McorrSeedIF}{.424}\newcommand{\MshortIF}{.453}
+\newcommand{\MgptqFourIF}{.473}\newcommand{\McorrFourIF}{.536}\newcommand{\MrtnFourIF}{.545}
+\newcommand{\NgptqIF}{.478}\newcommand{\NrtnIF}{.285}\newcommand{\NtnormIF}{.537}\newcommand{\NgonlyIF}{.541}\newcommand{\NcorrIF}{.540}
 
-% ---- Census ----------------------------------------------------------------
-\newcommand{\nCensus}{32}          % short-c4 3-bit census size   -> W72: 18
+% ---- Census (18 models: 16 of jobs/w72b + Llama + Qwen) --------------------
+\newcommand{\nCensus}{18}          % short-document 3-bit census; RTN3 reference on all 18 (W75 added Llama-3-8B .521, Llama-3.2-3B .538)
+\newcommand{\nCensusRTN}{18}
 \newcommand{\nCollapse}{2}
-\newcommand{\nWin}{13}             % c4win census size            -> W72: 16
-\newcommand{\nFour}{17}            % 4-bit census size            -> W72: 18
-\newcommand{\FourMeanDelta}{$-0.6$}\newcommand{\FourNegFrac}{11/17}
-\newcommand{\FourMistral}{$-9.5$}\newcommand{\FourQwenThree}{$-5.7$}
-\newcommand{\nCorr}{29}            % models with the corrected objective -> W72: 18
-\newcommand{\CorrWorstVsRTN}{$-2.7$}
-\newcommand{\CorrHealthyMean}{$-0.6$}\newcommand{\nHealthy}{14}
-\newcommand{\CorrHealthyWorst}{$-7.9$}\newcommand{\CorrHealthyBest}{$+9.1$}
-\newcommand{\CorrUnseenMean}{$+1.6$}\newcommand{\nUnseen}{10}
-\newcommand{\CorrFourMistral}{$+8.3$}\newcommand{\CorrFourHermes}{$+3.9$}
-\newcommand{\nSink}{26}\newcommand{\nNoSink}{2}
-\newcommand{\LesionRatioMin}{3}\newcommand{\LesionRatioMax}{456}   % template-position GPTQ/RTN error ratio at the sink down_proj (W58 detector)
-\newcommand{\LesionSpearman}{$-0.50$}\newcommand{\nBlind}{16}       % prospective ranking of GPTQ-RTN loss by lesion size
+\newcommand{\nWin}{18}             % c4win census (16 of w72c + Llama + Qwen)
+\newcommand{\nFour}{18}            % 4-bit census
+\newcommand{\FourMeanDelta}{$-0.1$}\newcommand{\FourNegFrac}{11/18}
+\newcommand{\FourMistral}{$-7.2$}\newcommand{\FourQwenThree}{$-6.2$}\newcommand{\FourHermes}{$-4.6$}
+\newcommand{\nCorr}{18}            % corrected objective vs RTN (short-document); Llama-3-8B +7.5, Llama-3.2-3B +2.7
+\newcommand{\CorrWorstVsRTN}{$-4.6$}   % gemma-2-9b, the model without a sink
+\newcommand{\CorrHealthyMean}{$+0.3$}\newcommand{\nHealthy}{16}
+\newcommand{\CorrHealthyWorst}{$-5.6$}\newcommand{\CorrHealthyBest}{$+13.9$}
+\newcommand{\CorrFourMistral}{$+6.3$}\newcommand{\CorrFourHermes}{$+5.9$}\newcommand{\CorrFourQwenThree}{$+1.7$}
+\newcommand{\nSink}{26}\newcommand{\nNoSink}{2}   % blind-spot census (W59/W63, fp16 measurement)
 \newcommand{\AbosMin}{.50}\newcommand{\GbosMax}{.008}\newcommand{\GemmaAbosMax}{.007}
-\newcommand{\SeedNoise}{3}         % calibration-seed spread, points
-\newcommand{\Gshare}{1.7\%}        % share of positions carrying the output-side mass
+\newcommand{\LesionRatioMin}{3}\newcommand{\LesionRatioMax}{471}   % template-position GPTQ/RTN error ratio at the sink down_proj (W74, 17 sink models)
+\newcommand{\nSinkStats}{17}       % census models with a sink in the W74 statistics (all but gemma-2-9b)
+\newcommand{\nRowConc}{14}         % of 17: top-row error share under GPTQ > 2x that under RTN
+\newcommand{\nClipOver}{16}        % of 17: largest compensated entry > 2x the largest original entry
+\newcommand{\SeedNoise}{4}
+\newcommand{\Gshare}{1.7\%}

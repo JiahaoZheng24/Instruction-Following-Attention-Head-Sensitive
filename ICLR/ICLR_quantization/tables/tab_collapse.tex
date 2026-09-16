@@ -1,5 +1,5 @@
 \begin{table}[t]
-\caption{Two collapses under the short-document protocol (3 bits, group 128). IFEval is the mean of prompt- and instruction-level strict and loose accuracy; Multi-IF is turn 1 of three. Likelihood-based metrics of the collapsed checkpoints stay in the ordinary 3-bit range.}
+\caption{Two collapses under the short-document protocol (3 bits, group 128). IFEval is the mean of prompt- and instruction-level strict and loose accuracy; Multi-IF is turn 1 of three. Likelihood-based metrics of the collapsed checkpoints are at or above their RTN counterparts.}
 \label{tab:collapse}
 \begin{center}
 \small
@@ -8,16 +8,16 @@
 Model & Arm & IFEval & GSM8K & Multi-IF & MMLU & PPL \\
 \midrule
 \multirow{4}{*}{Llama-3.1-8B-Instruct}
- & fp16        & \LfpIF{}   & \LfpGSM{}   & \LfpMIFone{}   & \LfpMMLU{}   & \LfpPPL{} \\
- & RTN, 3-bit  & \LrtnIF{}  & \LrtnGSM{}  & \LrtnMIFone{}  & \numtodo{--} & \numtodo{--} \\
- & GPTQ, 3-bit & \LgptqIF{} & \LgptqGSM{} & \LgptqMIFone{} & \LgptqMMLU{} & \LgptqPPL{} \\
- & GPTQ, 4-bit & \LgptqFourIF{} & \numtodo{--} & \numtodo{--} & \numtodo{--} & \numtodo{--} \\
+ & fp16        & \LfpIF{}       & \LfpGSM{}       & \LfpMIFone{}       & \LfpMMLU{}       & \LfpPPL{} \\
+ & RTN, 3-bit  & \LrtnIF{}      & \LrtnGSM{}      & \LrtnMIFone{}      & \LrtnMMLU{}      & \LrtnPPL{} \\
+ & GPTQ, 3-bit & \LgptqIF{}     & \LgptqGSM{}     & \LgptqMIFone{}     & \LgptqMMLU{}     & \LgptqPPL{} \\
+ & GPTQ, 4-bit & \LgptqFourIF{} & \LgptqFourGSM{} & \LgptqFourMIFone{} & \LgptqFourMMLU{} & \LgptqFourPPL{} \\
 \midrule
 \multirow{4}{*}{Qwen2.5-14B-Instruct}
- & fp16        & \QfpIF{}   & \QfpGSM{}   & \QfpMIFone{}   & \QfpMMLU{}   & \QfpPPL{} \\
- & RTN, 3-bit  & \QrtnIF{}  & \QrtnGSM{}  & \QrtnMIFone{}  & \numtodo{--} & \numtodo{--} \\
- & GPTQ, 3-bit & \QgptqIF{} & \QgptqGSM{} & \QgptqMIFone{} & \QgptqMMLU{} & \QgptqPPL{} \\
- & GPTQ, 4-bit & \QgptqFourIF{} & \numtodo{--} & \numtodo{--} & \numtodo{--} & \numtodo{--} \\
+ & fp16        & \QfpIF{}       & \QfpGSM{}       & \QfpMIFone{}       & \QfpMMLU{}       & \QfpPPL{} \\
+ & RTN, 3-bit  & \QrtnIF{}      & \QrtnGSM{}      & \QrtnMIFone{}      & \QrtnMMLU{}      & \QrtnPPL{} \\
+ & GPTQ, 3-bit & \QgptqIF{}     & \QgptqGSM{}     & \QgptqMIFone{}     & \QgptqMMLU{}     & \QgptqPPL{} \\
+ & GPTQ, 4-bit & \QgptqFourIF{} & \QgptqFourGSM{} & \QgptqFourMIFone{} & \QgptqFourMMLU{} & \QgptqFourPPL{} \\
 \bottomrule
 \end{tabular}
 \end{center}

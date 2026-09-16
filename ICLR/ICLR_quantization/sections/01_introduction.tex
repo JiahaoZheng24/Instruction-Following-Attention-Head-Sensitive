@@ -2,19 +2,19 @@
 \label{sec:intro}
 Weight-only post-training quantisation is how most instruction-tuned language models are deployed, and GPTQ \citep{frantar2023gptq} is its default engine: each linear layer is rounded column by column, and every rounding error is compensated on the remaining columns using the curvature of the layer's reconstruction error on a small calibration set.
 The procedure is validated by perplexity and by multiple-choice accuracy.
-\cref{fig:teaser} shows what these metrics do not see.
-Quantised to 3 bits with the calibration protocol that a widely used library applies by default, Llama-3.1-8B-Instruct keeps a perplexity and an MMLU score in the ordinary 3-bit range and stops following instructions: IFEval falls from \LfpIF{} to \LgptqIF{}, while round-to-nearest (RTN), which uses no calibration data, retains \LrtnIF{}.
+\cref{fig:bars} shows what these metrics do not see.
+Quantised to 3 bits with the calibration protocol that a widely used library applies by default, Llama-3.1-8B-Instruct keeps an MMLU score above its RTN counterpart and a perplexity of the same order, and stops following instructions: IFEval falls from \LfpIF{} to \LgptqIF{}, while round-to-nearest (RTN), which uses no calibration data, retains \LrtnIF{}.
 Qwen2.5-14B-Instruct behaves the same way (\QfpIF{} to \QgptqIF{}, RTN \QrtnIF{}).
 
 Three properties explain why this has not been reported.
 The failure is silent, because teacher-forced likelihood never touches the tokens that carry the damage.
 It is rare: \nCollapse{} of \nCensus{} instruction-tuned models collapse under the default protocol.
 And it depends on how the calibration text is cut: the same model, code and token budget with 2,048-token windows in place of short documents gives \LcwinIF{}.
-Together these are the signature of a mechanism, and this paper derives it.
+Together these are the signature of a mechanism, and this paper derives it (\cref{fig:teaser}).
 The layer-wise objective weights each calibration token by its squared activation and treats an output error as equally harmful at every position.
 At the layer that forms the attention sink, both assumptions fail at once: the beginning-of-sequence token owns the curvature, and the loss is indifferent to that token's output while depending on the template tokens that attend to it.
 Under a rank-one curvature the compensation step has a closed form, and it turns this blind spot into what we call the lesion: a one-directional error in one matrix, concentrated in one row, that damages the template tokens of the prompt and spares the response.
-The lesion can be excised without extra bits and transplanted between networks; it is necessary for the collapse but becomes fatal only inside a particular kind of quantised background.
+The lesion can be excised without extra bits and transplanted between networks; it is necessary for the collapse, harmless inside a full-precision or RTN network, and fatal only together with the layers that GPTQ quantised after it.
 Every remedy practitioners have found by trial reduces the sink token's weight in the curvature, and the direct remedy, weighting each token by its output-side sensitivity over its input energy, repairs every collapse we found.
 
 Our contributions are: a silent, protocol-dependent failure of layer-wise quantisation and the class of quantisers that share it (\cref{sec:phenomenon}); its localisation to one matrix and one direction, with transplants that separate necessity from sufficiency (\cref{sec:lesion}); a derivation of the lesion from the objective, whose premise holds in all \nSink{} models with an attention sink and in neither model without (\cref{sec:mechanism,sec:universality}); and a corrected objective with its costs (\cref{sec:corrected}).
@@ -22,8 +22,8 @@ Collapse is not universal and we cannot yet derive when a lesion is fatal; every
 
 \begin{figure}[t]
 \begin{center}
-\fig{fig1_teaser}{0.95\linewidth}
+\fig{fig1_mechanism}{\linewidth}
 \end{center}
-\caption{Silent collapse. Left: IFEval of Llama-3.1-8B-Instruct at fp16 (\LfpIF{}), 3-bit RTN (\LrtnIF{}), 3-bit GPTQ with the default short-document calibration (\LgptqIF{}), 3-bit GPTQ with the corrected objective (\LcorrIF{}) and 4-bit GPTQ (\LgptqFourIF{}). Right: WikiText perplexity and MMLU of the same checkpoints. \todo{plot from runs/INDEX\_scores.csv; perplexity on a log axis}}
+\caption{The mechanism. (a) A pre-norm transformer block; the sink-forming down-projection reads $\vx_t$ and writes the sink into the residual stream, and the RMSNorm in front of the next block attenuates the gradient that returns to the \bos{} position. (b) Along a chat prompt at that layer, the input-side energy $\|\vx_t\|^2$, all that the layer-wise objective weights by, belongs to \bos{}, while the output-side sensitivity $\gsens$ of the loss is zero at \bos{} and concentrated on the template tokens that the response attends to. (c) The compensation step writes every rounding error along the \bos{} pattern (\cref{thm:rankone}), the error lands on the tokens that overlap that pattern, and instruction following collapses while likelihood metrics do not move; weighting each token by $\gsens/\|\vx_t\|^2$ restores the missing side. \todo{figures/fig1\_mechanism.pdf, drawn per the specification in figures/README.md}}
 \label{fig:teaser}
 \end{figure}

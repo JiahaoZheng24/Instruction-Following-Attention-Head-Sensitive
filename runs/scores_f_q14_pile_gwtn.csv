@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_q14_pile_gwtn,0.7301,0.7938,0.7745,0.8297,0.782

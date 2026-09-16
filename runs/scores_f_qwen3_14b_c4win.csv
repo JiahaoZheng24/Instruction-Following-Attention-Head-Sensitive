@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_qwen3_14b_c4win,0.3494,0.5036,0.3937,0.536,0.4457

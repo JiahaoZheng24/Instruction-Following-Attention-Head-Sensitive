@@ -1,0 +1,3 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_nemo_gwtn,0.427,0.548,0.4713,0.5851,0.5079
+f_nemo_gwtn,0.4566,0.5743,0.5065,0.6235,0.5402

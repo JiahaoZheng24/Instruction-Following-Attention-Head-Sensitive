@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_q32_none,0.7264,0.8034,0.7671,0.8393,0.7841

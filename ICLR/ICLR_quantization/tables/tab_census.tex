@@ -8,10 +8,12 @@
 Statement & Models & Outcome \\
 \midrule
 Blind spot (\cref{prop:mismatch}) at the sink-forming layer & \nSink{} with a sink, \nNoSink{} without & \nSink{}/\nSink{}; 0/\nNoSink{} \\
+Lesion signature (template error of GPTQ over RTN $\ge$ \LesionRatioMin{}) & \nSinkStats{} with a sink & \nSinkStats{}/\nSinkStats{} \\
+Row concentration and range overshoot (\cref{cor:shape}(i)) & \nSinkStats{} & \nRowConc{}/\nSinkStats{}; \nClipOver{}/\nSinkStats{} \\
 3-bit collapse under the short-document protocol            & \nCensus{}  & \nCollapse{} \\
 3-bit collapse under C4 windows                              & \nWin{}     & 1 (Mistral-7B-v0.3) \\
-4-bit GPTQ minus 4-bit RTN                                   & \nFour{}    & mean \FourMeanDelta{}; \FourMistral{} and \FourQwenThree{} at worst \\
-Corrected objective minus RTN, worst case, three protocols   & \nCorr{}    & \CorrWorstVsRTN{} \\
+4-bit GPTQ minus 4-bit RTN                                   & \nFour{}    & mean \FourMeanDelta{}; negative on \FourNegFrac{} \\
+Corrected objective minus RTN, worst case                    & \nCorr{}    & \CorrWorstVsRTN{} (gemma-2-9b, no sink) \\
 Corrected objective minus GPTQ on models that did not collapse & \nHealthy{} & mean \CorrHealthyMean{} (\CorrHealthyWorst{} to \CorrHealthyBest{}) \\
 \bottomrule
 \end{tabular}

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_f3_gptq4,0.6932,0.7794,0.732,0.8094,0.7535

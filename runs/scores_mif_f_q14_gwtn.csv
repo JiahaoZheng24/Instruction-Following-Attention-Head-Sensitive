@@ -1,0 +1,2 @@
+tag,t1_prompt_strict,t1_inst_strict,t2_prompt_strict,t2_inst_strict,t3_prompt_strict,t3_inst_strict,skipped_instructions
+mif_f_q14_gwtn,0.6799,0.7522,0.4521,0.7077,0.2656,0.6669,0

@@ -1,0 +1,2 @@
+tag,t1_prompt_strict,t1_inst_strict,t2_prompt_strict,t2_inst_strict,t3_prompt_strict,t3_inst_strict,skipped_instructions
+mif_f_l_gptq4,0.714,0.7877,0.5171,0.7606,0.3527,0.7291,0

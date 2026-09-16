@@ -1,0 +1,66 @@
+% Figure 1: the mechanism drawn on the model. Pure TikZ, no external file.
+% Rows (top to bottom): output-side sensitivity g_t; input-side energy ||x_t||^2; the token
+% sequence at the sink-forming layer with attention arcs; the matrix, the rank-one update and
+% the resulting error by token class.
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+% ---------------- token sequence (sink red, template orange, instruction grey, response blue) ----
+\tikzset{tok/.style={draw, minimum width=1.05cm, minimum height=0.5cm, inner sep=1pt}}
+\node[tok, fill=red!25]    (t0)  at (0,0)     {\bos};
+\node[tok, fill=orange!30] (t1)  at (1.15,0)  {\texttt{<|hdr|>}};
+\node[tok, fill=orange!30] (t2)  at (2.30,0)  {user};
+\node[tok, fill=orange!30] (t3)  at (3.45,0)  {\texttt{<|/hdr|>}};
+\node[tok, fill=orange!30] (t4)  at (4.60,0)  {newline};
+\node[tok, fill=gray!15]   (t5)  at (5.75,0)  {Write};
+\node[tok, fill=gray!15]   (t6)  at (6.90,0)  {a};
+\node[tok, fill=gray!15]   (t7)  at (8.05,0)  {poem};
+\node[tok, fill=orange!30] (t8)  at (9.20,0)  {\texttt{<|eot|>}};
+\node[tok, fill=blue!12]   (t9)  at (10.35,0) {Roses};
+\node[tok, fill=blue!12]   (t10) at (11.50,0) {are};
+\node[anchor=east, align=right] at (-0.8,0) {tokens at the\\ sink-forming layer};
+\node[anchor=west, align=left] at (12.2,0.18) {\textcolor{red!70!black}{$\blacksquare$} sink \quad \textcolor{orange!80!black}{$\blacksquare$} template};
+\node[anchor=west, align=left] at (12.2,-0.22) {\textcolor{gray}{$\blacksquare$} instruction \quad \textcolor{blue!60}{$\blacksquare$} response};
+% attention arcs from the response to the sink and to the template
+\draw[-{Latex[length=1.4mm]}, thick, red!60!black] (t9.south) to[out=-110, in=-70] node[pos=.5, below, font=\tiny] {attention sink} (t0.south);
+\draw[-{Latex[length=1.4mm]}, thick, orange!80!black] (t10.south) to[out=-100, in=-80] (t3.south);
+% ---------------- input side (lower bars) ----------------
+\draw[gray] (-0.6,1.0) -- (11.9,1.0);
+\fill[red!50] (-0.4,1.0) rectangle (0.4,2.6);
+\foreach \x in {1.15,2.30,3.45,4.60,5.75,6.90,8.05,9.20,10.35,11.50} {\fill[red!50] (\x-0.4,1.0) rectangle (\x+0.4,1.04);}
+\node[anchor=east, align=right] at (-0.8,1.8) {\textbf{input side} $\|\vx_t\|^2$\\ what the objective\\ weights by};
+\node[anchor=west, align=left] at (12.2,1.8) {$A_{\bos}=\LAbos$\\ $\hess\approx\vx_0\vx_0^\top$};
+% ---------------- output side (upper bars) ----------------
+\draw[gray] (-0.6,3.1) -- (11.9,3.1);
+\fill[orange!70] (-0.4,3.1)  rectangle (0.4,3.12);
+\fill[orange!70] (0.75,3.1)  rectangle (1.55,4.3);
+\fill[orange!70] (1.90,3.1)  rectangle (2.70,3.7);
+\fill[orange!70] (3.05,3.1)  rectangle (3.85,4.7);
+\fill[orange!70] (4.20,3.1)  rectangle (5.00,4.1);
+\fill[orange!70] (5.35,3.1)  rectangle (6.15,3.35);
+\fill[orange!70] (6.50,3.1)  rectangle (7.30,3.3);
+\fill[orange!70] (7.65,3.1)  rectangle (8.45,3.35);
+\fill[orange!70] (8.80,3.1)  rectangle (9.60,4.0);
+\fill[orange!70] (9.95,3.1)  rectangle (10.75,3.18);
+\fill[orange!70] (11.10,3.1) rectangle (11.90,3.18);
+\node[anchor=east, align=right] at (-0.8,3.9) {\textbf{output side} $\gsens$\\ what the loss\\ depends on};
+\node[anchor=west, align=left] at (12.2,3.9) {$G_{\bos}=\LGbos$\\ mass on template tokens};
+\node[fill=white, inner sep=1pt, font=\scriptsize\itshape] at (5.6,2.85) {the two sides sit on different tokens; the objective sees only the lower one};
+% ---------------- bottom: matrix, update, error, outcome ----------------
+\draw[fill=gray!10] (0.0,-3.6) rectangle (2.6,-2.0);
+\draw[red!70!black, very thick] (0.0,-2.55) -- (2.6,-2.55);
+\node[font=\tiny, anchor=west] at (2.65,-2.55) {row \LsinkRow};
+\node[anchor=north, align=center] at (1.3,-3.65) {down-projection $\mW$\\ of the sink-forming layer};
+\draw[-{Latex[length=1.6mm]}, thick] (2.7,-2.8) -- (3.5,-2.8);
+\node[align=center] at (4.9,-2.8) {OBS update\\ $\Delta\vw_k=\delta_j\,\dfrac{x_{0j}x_{0k}}{\|\vx_0\|^2}$\\[1pt] rank one, along $\vx_0$};
+\draw[-{Latex[length=1.6mm]}, thick] (6.3,-2.8) -- (7.0,-2.8);
+\draw[gray] (7.1,-3.45) -- (9.9,-3.45);
+\fill[red!50]    (7.2,-3.45) rectangle (7.7,-3.35);
+\fill[orange!70] (7.9,-3.45) rectangle (8.4,-2.15);
+\fill[gray!50]   (8.6,-3.45) rectangle (9.1,-3.10);
+\fill[blue!40]   (9.3,-3.45) rectangle (9.8,-3.20);
+\node[anchor=north, align=center] at (8.5,-3.65) {error $e_t\propto\vx_0^\top\vx_t$ along $\sinkdir$\\ by token class};
+\draw[-{Latex[length=1.6mm]}, thick] (10.0,-2.8) -- (10.6,-2.8);
+\node[draw, rounded corners=2pt, fill=red!8, align=center, text width=3.0cm, inner sep=3pt] at (12.3,-2.8) {\textbf{collapse} in free generation\\ (IFEval \LfpIF{} $\to$ \LgptqIF{});\\ MMLU and perplexity unchanged};
+\node[draw, rounded corners=2pt, fill=green!10, align=center, text width=3.0cm, inner sep=3pt] (fix) at (12.3,-4.9) {\textbf{repair}: $\wtok=\gsens/\|\vx_t\|^2$\\ puts the upper bars back into $\hess$};
+\draw[-{Latex[length=1.6mm]}, thick, dashed, green!50!black] (fix.west) -| (4.9,-3.7);
+\end{tikzpicture}}

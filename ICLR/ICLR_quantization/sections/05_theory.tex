@@ -1,0 +1,104 @@
+\section{Theory: what the layer-wise objective leaves out}
+\label{sec:mechanism}
+The lesion has three properties that a mechanism must produce: it arises in the sink-forming layer and nowhere else, it is written along one direction and concentrated in a few rows, and it damages the tokens that overlap the sink pattern while sparing the rest.
+This section derives all three from \cref{eq:layerwise}, and derives the repair.
+Throughout, $\mW\in\R^{d_{\mathrm{out}}\times d_{\mathrm{in}}}$ is one layer, $\vx_t$ its input at position $t$, $\vx_0$ the input at the \bos{} position, and $\hess=\sum_t\vx_t\vx_t^\top$.
+GPTQ rounds column $j$ to $q_j$ with error vector $\delta_j=\vw_j-q_j\in\R^{d_{\mathrm{out}}}$ over rows and updates every unrounded column $k$ by
+\begin{equation}
+\label{eq:obs}
+\Delta\vw_k=-\,\delta_j\,\frac{[\hess_\lambda^{-1}]_{jk}}{[\hess_\lambda^{-1}]_{jj}},\qquad \hess_\lambda=\hess+\lambda\mI,
+\end{equation}
+the change that best cancels the effect of $\delta_j$ on the layer output under \cref{eq:layerwise}.
+
+\subsection{Two sides of the curvature}
+\label{sec:mechanism:sides}
+\begin{lemma}[two-sided curvature]
+\label{lem:twosides}
+Let $L$ be the loss of the network and $\vy_t=\mW\vx_t$.
+To second order in $\Delta\mW$,
+\begin{equation}
+\label{eq:twosides}
+\Delta L=\tfrac12\sum_{t}(\Delta\mW\vx_t)^\top\mG_t(\Delta\mW\vx_t)+o(\|\Delta\mW\|^2),\qquad \mG_t=\frac{\partial^2L}{\partial\vy_t\,\partial\vy_t^\top},
+\end{equation}
+so the Hessian of $L$ in $\operatorname{vec}(\mW)$ is $\sum_t\vx_t\vx_t^\top\otimes\mG_t$ \citep{martens2015kfac}, and \cref{eq:layerwise} is the case $\mG_t\equiv\mI$.
+\end{lemma}
+The substitution keeps the input side, which is free, and drops the output side, which needs a backward pass.
+It is harmless only if $\mG_t$ is roughly the same at every position.
+We write $\gsens=\|\partial L/\partial\vy_t\|^2$ for the output-side sensitivity at $t$ and $A_c$, $G_c$ for the shares of $\sum_t\|\vx_t\|^2$ and $\sum_t\gsens$ on a class $c$ of positions.
+\begin{proposition}[position mismatch]
+\label{prop:mismatch}
+At the sink-forming down-projection of an instruction-tuned model, $A_{\bos}\ge\AbosMin$ (Llama \LAbos{}, Qwen \QAbos{}) and $G_{\bos}\le\GbosMax$, while $\gsens$ concentrates on the first \Gshare{} of positions, the template tokens, at $10^3$ to $10^5$ times the per-token median (\cref{fig:ag}).
+\end{proposition}
+The first half is the sink: the residual stream at \bos{} has grown to a norm of several hundred \citep{sun2024massive}, and \cref{eq:layerwise} weights each token by the square of that norm.
+The second half follows from the normalisation in front of the next layer.
+\begin{lemma}[gradient attenuation at the sink]
+\label{lem:rmsnorm}
+For $\vh\mapsto\vh/\operatorname{rms}(\vh)$ the Jacobian has operator norm $O(1/\operatorname{rms}(\vh))$, so the gradient reaching the sink position through the normalised path is attenuated by that factor relative to ordinary positions \citep{chen2026gradientsinks}.
+\todo{collaborator: statement including the residual path, and proof.}
+\end{lemma}
+The output side is large at the template tokens because the response attends to them through the sink, so an error written there is read at every generated token.
+The objective thus optimises the one position the loss ignores and is blind to the positions it depends on.
+This blind spot is a property of the objective and of the activation statistics, not of a quantiser, which is why AutoRound shares the failure (\cref{sec:phenomenon}).
+\begin{figure}[t]
+\begin{center}
+\fig{fig3_ag}{0.9\linewidth}
+\end{center}
+\caption{Input-side share $A_{\bos}$ against output-side share $G_{\bos}$ at the sink-forming down-projection for \nSink{} models with an attention sink and the two gemma-2 models without one. \todo{plot from runs/sides/*.csv}}
+\label{fig:ag}
+\end{figure}
+
+\subsection{What the compensation does when one token owns the curvature}
+\label{sec:mechanism:rankone}
+Write $\hess_\lambda=\vx_0\vx_0^\top+\mM$ with $\mM=\sum_{t\ne0}\vx_t\vx_t^\top+\lambda\mI\succ0$ the curvature of the ordinary tokens, $\vv=\mM^{-1}\vx_0$ and $\kappa=\vx_0^\top\vv$.
+Under \cref{prop:mismatch}, $\kappa\gg1$ (\cref{app:extra}).
+\begin{theorem}[compensation under a dominant token]
+\label{thm:rankone}
+(a) For every column $j$ and unrounded column $k\ne j$, the update \cref{eq:obs} is exactly
+\begin{equation}
+\label{eq:exact}
+\Delta\vw_k=\delta_j\,\frac{v_jv_k/(1+\kappa)-[\mM^{-1}]_{jk}}{[\mM^{-1}]_{jj}-v_j^2/(1+\kappa)} .
+\end{equation}
+(b) If $\mM=\lambda\mI$ this reduces to $\Delta\vw_k=\delta_j\,x_{0j}x_{0k}/(\lambda+\|\vx_0\|^2-x_{0j}^2)$: the update is a multiple of $\vx_0$ restricted to the unrounded columns, and the output change at \bos{} is $-\delta_jx_{0j}\lambda/(\lambda+\|\vx_0\|^2-x_{0j}^2)\to0$.
+(c) In the same case the output change at any position $t$, to leading order in $\lambda/\|\vx_0\|^2$ and $x_{0j}^2/\|\vx_0\|^2$, is
+\begin{equation}
+\label{eq:error}
+e_t=\delta_j\,x_{0j}\,\frac{\vx_0^\top\vx_t}{\|\vx_0\|^2}\;-\;\delta_j\,x_{tj},
+\end{equation}
+so that after rounding a set $J$ of columns, row $r$ carries $e^{(r)}_t=c_r\,\vx_0^\top\vx_t/\|\vx_0\|^2+\eta^{(r)}_t$ with $c_r=\sum_{j\in J}\delta^{(r)}_jx_{0j}$ and $\eta^{(r)}_t=-\sum_{j\in J}\delta^{(r)}_jx_{tj}$, up to the interaction between successive steps.
+\end{theorem}
+\begin{proof}
+(a) By Sherman--Morrison, $\hess_\lambda^{-1}=\mM^{-1}-\vv\vv^\top/(1+\kappa)$; substituting $[\hess_\lambda^{-1}]_{jk}=[\mM^{-1}]_{jk}-v_jv_k/(1+\kappa)$ into \cref{eq:obs} gives \cref{eq:exact}, and the denominator is positive because $\hess_\lambda\succ0$.
+(b) With $\mM=\lambda\mI$, $\vv=\vx_0/\lambda$ and $\kappa=\|\vx_0\|^2/\lambda$; for $k\ne j$ the off-diagonal $[\mM^{-1}]_{jk}$ vanishes and the ratio simplifies as stated.
+The rounding itself changes column $j$ by $-\delta_j$, so the output change at \bos{} is $-\delta_jx_{0j}+\sum_{k\ne j}\Delta\vw_kx_{0k}=-\delta_jx_{0j}\big(1-\tfrac{\|\vx_0\|^2-x_{0j}^2}{\lambda+\|\vx_0\|^2-x_{0j}^2}\big)$.
+(c) The same sum at a general position gives $-\delta_jx_{tj}+\delta_jx_{0j}(\vx_0^\top\vx_t-x_{0j}x_{tj})/(\lambda+\|\vx_0\|^2-x_{0j}^2)$, whose leading terms are \cref{eq:error}; summing over $J$ row by row gives the decomposition.
+\todo{collaborator: the interaction between successive steps under act-order (largest $x_{0j}^2$ first), the size of the neglected terms for general $\mM$ in terms of $\kappa$ and $\|\mM^{-1}\|$, and the order of $\eta$ for a grid step $\Delta$.}
+\end{proof}
+\cref{eq:exact} separates the update into the ordinary OBS compensation through the other tokens' curvature, $[\mM^{-1}]_{jk}$, and a rank-one term along $\vv=\mM^{-1}\vx_0$, the sink pattern whitened by the ordinary tokens.
+The rank-one term dominates exactly on the columns where $\vx_0$ carries its mass, and act-order rounds those columns first.
+\cref{eq:error} separates the resulting output error into a deterministic part proportional to the overlap $\vx_0^\top\vx_t$ of a position with the sink pattern, and the plain rounding error $-\delta_jx_{tj}$ that RTN would also produce.
+\begin{corollary}[the shape of the lesion]
+\label{cor:shape}
+(i) The compensated error of the matrix is rank-one along $\vx_0$, largest in the rows $r$ with the largest $c_r$, that is, the largest rounding errors on the channels where $\vx_0$ is large; on those rows the update can exceed the group range.
+(ii) The output error at a position is the overlap term plus a noise floor: positions whose activation shares the sink direction are damaged in proportion to the overlap, positions orthogonal to it see only rounding noise.
+(iii) The relative size of the deterministic term is governed by $\kappa=\vx_0^\top\mM^{-1}\vx_0$; anything that lowers $\kappa$ shrinks it.
+\end{corollary}
+(i) is the row-\LsinkRow{} concentration and the clipping of \cref{sec:lesion}; (ii) is the template-versus-response contrast, with the noise floor visible in the flat middle quintiles of overlap; (iii) accounts for every remedy found by trial: damping raises $\lambda$ inside $\mM$, token normalisation divides $\vx_0$ by its norm, chat-formatted calibration adds template activations to $\mM$, long windows add ordinary tokens to $\mM$, and re-rounding removes the update.
+None of them restores the output side, which is why each has a failure case (\cref{sec:corrected}).
+
+\subsection{Why the correction must be on the token axis}
+\label{sec:mechanism:restore}
+\begin{proposition}[token-level weights act, channel-level factors cancel]
+\label{prop:tokenlevel}
+(a) A curvature $\hess\otimes\mG$ with a diagonal output-side factor $\mG=\operatorname{diag}(\gamma_1,\dots,\gamma_{d_{\mathrm{out}}})$ leaves the update \cref{eq:obs} unchanged.
+(b) With $\hessw=\sum_t\wtok\vx_t\vx_t^\top$, $\wtok=\gsens/\|\vx_t\|^2$, the share of $\operatorname{tr}\hessw$ contributed by \bos{} is $G_{\bos}$; under \cref{prop:mismatch} it is at most \GbosMax{}, and the dominant token of \cref{thm:rankone} no longer exists.
+(c) $\hessw$ is the per-token-whitened, diagonal-$\mG_t$ approximation of the curvature in \cref{eq:twosides}.
+\end{proposition}
+\begin{proof}
+(a) The objective $\operatorname{tr}[\Delta\mW\hess\Delta\mW^\top\mG]=\sum_r\gamma_r\,\Delta\vw^{(r)}\hess\,\Delta\vw^{(r)\top}$ is a sum over rows with a positive scalar per row; the minimiser of each row's term, and hence the column-wise update, does not depend on $\gamma_r$.
+(b) $\operatorname{tr}\hessw=\sum_t\wtok\|\vx_t\|^2=\sum_t\gsens$, and the \bos{} term is $g_0$.
+(c) Replace $\mG_t$ in \cref{eq:twosides} by $(\gsens/d_{\mathrm{out}})\mI$ and rescale each $\vx_t$ to unit norm; the resulting quadratic form in $\Delta\mW$ is $\operatorname{tr}[\Delta\mW\hessw\Delta\mW^\top]$ up to the constant.
+\todo{collaborator: (c) as a statement about the approximation error; and the remark that a weight on the token axis is the only place in \cref{eq:layerwise} where the output side can enter without changing the column-wise update, which is the boundary with \citet{lee2026kronq}.}
+\end{proof}
+Two limits of the theory should be stated.
+It is local to one matrix and, in (c), first order: it predicts the lesion, its direction and its victims, not why the same lesion is harmless in one background and fatal in another (\cref{sec:lesion}).
+And \cref{cor:shape}(ii) holds at the extremes of overlap; the middle sixty percent of positions sit at the noise floor $\eta$.

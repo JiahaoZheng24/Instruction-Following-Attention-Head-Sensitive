@@ -1,11 +1,11 @@
-\section{The lesion}
+\section{The lesion: one matrix, one direction}
 \label{sec:lesion}
 We call the concentrated part of the damage the \emph{lesion} and characterise it by excising it, measuring its geometry and transplanting it; \cref{tab:lesion,tab:transplant} in the appendix list every arm.
 
 \paragraph{Where it is.}
 Comparing hidden states of the collapsed and the full-precision Llama model position by position singles out one position and one depth: at the output of layer 2, the relative error at position \LlesionPos{}, the token \texttt{<|end\_header\_id|>} that closes the chat header, is \LposErr{}, against \LposErrRest{} elsewhere; for Qwen it is \QsinkTok{} at the output of layer 5 (\QposErr{}).
 These are the positions where the attention sink forms, and the matrix that writes the sink state is the MLP down-projection of the sink-forming layer, layer 1 for Llama and layer \QlesionLayer{} for Qwen.
-Re-rounding that one matrix with RTN, with the other 223 quantised matrices of Llama untouched, raises IFEval from \LgptqIF{} to \LoneMatrixIF{}; for Qwen, from \QgptqIF{} to \QoneMatrixIF{}.
+Re-rounding that one matrix with RTN, with the other 223 quantised matrices of Llama untouched, raises IFEval from \LgptqIF{} to \LoneMatrixIF{} (re-rounding the down-projections of the first two blocks, \LzeroBitIF{}); for Qwen, from \QgptqIF{} to \QoneMatrixIF{}.
 The repair adds no bits; it removes the compensation, so the damage is in what the OBS step did, not in the precision.
 Keeping the attention projections of the first three layers at full precision does not help (\LearlyAttnIF{}), nor does keeping the five largest rows of the matrix (\LswRowsIF{}).
 
@@ -24,7 +24,9 @@ The damage is written into the matrix along the \bos{} pattern and read out wher
 
 \paragraph{Necessary, not sufficient.}
 Because the lesion is a matrix, its sufficiency can be tested by copying it into other networks.
-Inside the full-precision network it costs almost nothing (\TPfp{}); inside the RTN network five points (\TPrtn{}); inside the window-calibrated GPTQ network eight (\TPcwin{}).
-Only inside the rest of the short-document GPTQ solution is it fatal, and there any lesion is: the window checkpoint's version of the matrix, harmless in its own network, collapses the short-document network to \TPshort{}.
-The protocol dependence therefore lives not in the lesion but in the remainder of the quantised network, the \emph{background}, and it is a property of that solution as a whole: replacing layers 2 to 4 of the collapsed network by their window-calibrated counterparts does not restore it (\TPlayers{}), and the reverse does not break the window network (\TPrev{}).
+Inside the full-precision network it costs almost nothing (\TPfp{}), and inside the RTN network four points (\TPrtn{}): a lesion alone does not collapse a model.
+Inside a GPTQ-quantised network it does, and not only its own.
+Copied into the window-calibrated GPTQ network, which is healthy on its own (\LcwinIF{}), the short-document lesion collapses it (\TPcwin{}); copied the other way, the window checkpoint's version of the matrix, harmless in its own network, collapses the short-document network (\TPshort{}).
+GPTQ quantises layers in sequence on the propagated activations, so every layer after the first was compensated against the particular errors of its own sink-forming matrix; a matrix from another calibration run is foreign to that solution, and the network that tolerates its own lesion does not tolerate a foreign one.
+Fatality is therefore a property of the joint solution, the lesion together with the layers quantised after it, which we call the \emph{background}; excision shows the lesion is necessary, the fp16 and RTN transplants show it is not sufficient, and transplants between GPTQ checkpoints cannot separate the two further.
 Collapse needs a lesion of the kind derived next and a background that amplifies it; the first we derive and repair, the second we can only demonstrate (\cref{sec:universality}).

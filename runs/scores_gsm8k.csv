@@ -1,4 +1,11 @@
 tag,n,accuracy,parse_rate
-gsm_v2l_gwtn,1319,0.4981,0.9992
-gsm_v2q14_gwtn,1319,0.8529,1.0
-gsm_v2l_pile_gwtn,1319,0.6603,1.0
+gsm_f_l_none,1319,0.0083,0.6945
+gsm_f_l_gwtn,1319,0.5481,0.9992
+gsm_f_l_damp5,1319,0.6035,1.0
+gsm_f_q14_none,1319,0.1729,0.9992
+gsm_f_q14_gwtn,1319,0.8772,1.0
+gsm_f_q14_damp5,1319,0.8795,1.0
+gsm_f_l_rtn01down,1319,0.6315,1.0
+gsm_f_q14_l4down,1319,0.8886,1.0
+gsm_f_l_gptq4,1319,0.8158,1.0
+gsm_f_q14_gptq4,1319,0.9325,1.0

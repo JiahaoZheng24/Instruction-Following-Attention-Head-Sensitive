@@ -1,0 +1,3 @@
+target=/store01/yshi4/jzheng7/models/f-l-rtn3-tp
+donor=/store01/yshi4/jzheng7/models/f-l-donor70
+layers=1 proj=down_proj

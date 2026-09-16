@@ -13,9 +13,11 @@ Our quantiser matches the reference loop of GPTQ with act-order and $\rho=0.05$ 
 \subsection{A correction to our layer-wise loop}
 An earlier version of our loop passed the keyword arguments captured from the model's forward call, including an automatically created key-value cache, into the per-layer calls.
 Because each layer is called twice per sample (once to accumulate the Hessian, once to propagate after quantisation), the second call attended the layer's pre-quantisation keys and values.
-Every number in this paper comes from the corrected loop, which we validated by comparing the propagated activations at every depth with a full forward pass of the quantised model (relative error $0$ at all layers for Llama and Qwen).
-On the seven headline arms the correction moved IFEval by at most 1.5 points on six and by 22 points on one marginal arm (Llama under Pile windows, from a collapsed to a healthy value); the direction of every conclusion was unchanged.
-\todo{Update this paragraph once the W72 re-run is complete.}
+Every number in this paper comes from the corrected loop, which we validated by comparing the propagated activations at every depth with a full forward pass of the quantised model (relative error $0$ at all layers for Llama and Qwen), and every GPTQ-family arm was re-run under it.
+The two collapses, their cures and the census statements were unchanged; two results moved.
+Llama under Pile windows went from a collapsed value (.402) to a healthy one (\LpileIF{}), so the protocol dependence for Llama is now carried by the short-document protocol alone.
+And the transplant of the short-document lesion into the window-calibrated network went from a mild loss (.567) to a collapse (\TPcwin{}): under the defective loop the later layers had been compensated against partially unquantised activations and were less tightly fitted to their own sink-forming matrix, which is why a foreign matrix was tolerated.
+We report the corrected values and draw the conclusion of \cref{sec:lesion} from them.
 
 \subsection{Evaluation}
 \todo{IFEval scoring, prompt template and generation length (1,280 tokens, greedy); Multi-IF English three-turn subset; GSM8K zero-shot chain-of-thought prompt; MMLU five-shot; WikiText-2 perplexity with 2,048-token windows; hardware and wall-clock per arm.}

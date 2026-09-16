@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_tp_l_fp16_les,0.7061,0.7878,0.7412,0.8201,0.7638

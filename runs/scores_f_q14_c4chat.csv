@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_q14_c4chat,0.7227,0.7938,0.7579,0.8201,0.7736
