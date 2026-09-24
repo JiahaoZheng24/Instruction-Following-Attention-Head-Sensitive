@@ -1,5 +1,5 @@
 \begin{table}[t]
-\caption{Six quantisers at 3 bits (group 128, short-document calibration where calibration is used), sorted by objective. IFEval.}
+\caption{Quantizers at 3 bits (group 128, short-document calibration where calibration is used), sorted by objective. IFEval.}
 \label{tab:methods}
 \begin{center}
 \small
@@ -7,8 +7,9 @@
 \toprule
 Objective & Method & Llama-3.1-8B & Qwen2.5-14B \\
 \midrule
-\multirow{3}{*}{input-side curvature (OBS)}
+\multirow{4}{*}{input-side curvature (OBS)}
  & GPTQ                    & \LgptqIF{}  & \QgptqIF{} \\
+ & GPTQ, GPTQModel's group-aware column order & \LibLIF{} & \LibQIF{} \\
  & GPTAQ                   & \LgptaqIF{} & \QgptaqIF{} \\
  & GPTQ after rotation     & \LrotIF{}   & \QrotIF{} \\
 \midrule

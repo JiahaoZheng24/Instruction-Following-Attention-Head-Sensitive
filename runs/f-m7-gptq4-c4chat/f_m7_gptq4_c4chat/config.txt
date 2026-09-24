@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/f-m7-gptq4-c4chat
+heads=[]
+n=0

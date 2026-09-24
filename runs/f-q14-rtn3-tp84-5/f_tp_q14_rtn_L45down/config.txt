@@ -1,0 +1,3 @@
+target=/store01/yshi4/jzheng7/models/f-q14-rtn3-tp84-5
+donor=/store01/yshi4/jzheng7/models/f-q14-donor84-5
+layers=4-5:down_proj proj=4-5:down_proj

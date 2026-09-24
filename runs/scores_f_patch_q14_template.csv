@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_patch_q14_template,0.6858,0.765,0.7375,0.8118,0.75

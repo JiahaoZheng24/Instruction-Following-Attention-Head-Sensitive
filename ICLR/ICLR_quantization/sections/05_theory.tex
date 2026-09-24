@@ -1,104 +1,148 @@
-\section{Theory: what the layer-wise objective leaves out}
+\section{Theory: from objective mismatch to error misallocation}
 \label{sec:mechanism}
-The lesion has three properties that a mechanism must produce: it arises in the sink-forming layer and nowhere else, it is written along one direction and concentrated in a few rows, and it damages the tokens that overlap the sink pattern while sparing the rest.
-This section derives all three from \cref{eq:layerwise}, and derives the repair.
-Throughout, $\mW\in\R^{d_{\mathrm{out}}\times d_{\mathrm{in}}}$ is one layer, $\vx_t$ its input at position $t$, $\vx_0$ the input at the \bos{} position, and $\hess=\sum_t\vx_t\vx_t^\top$.
-GPTQ rounds column $j$ to $q_j$ with error vector $\delta_j=\vw_j-q_j\in\R^{d_{\mathrm{out}}}$ over rows and updates every unrounded column $k$ by
+
+GPTQ and RTN differ only in how they allocate committed rounding error: RTN leaves it where it occurs, GPTQ moves it onto the free columns to reduce the layer-wise objective. At the sink-forming down-projection, the GPTQ objective's curvature is concentrated at \bos{}, while the loss depends on the chat-template positions. GPTQ therefore suppresses the error at \bos{} by shifting it toward loss-relevant positions: an \emph{objective mismatch} becomes an \emph{error misallocation}. The theory covers the formation of the lesion, not its absorption by the rest of the network.
+
+
+\paragraph{Setup.}
+Consider one linear layer $\vy_t=\mW\vx_t$ with $\mW\in\R^{d_{\mathrm{out}}\times d_{\mathrm{in}}}$, where $t=0$ denotes the \bos{} position and $\vx_0$ its effective activation accumulated over the calibration samples.
+GPTQ quantizes the input coordinates sequentially using the damped input-side curvature $\hess_\lambda=\hess+\lambda\mI$, $\hess=\sum_t\vx_t\vx_t^\top$, $\lambda=\rho\operatorname{tr}\hess/d_{\mathrm{in}}$.
+We index the coordinates in quantization order, so that act-order is a permutation applied once before the loop; at step $j$ the free set is the suffix $F_j=\{j,\dots,d_{\mathrm{in}}\}$, and we write $\vx_{t,j}=\vx_t[F_j]$ and, since damping is applied once to the full curvature, $\hess_{\lambda,j}=\hess_\lambda[F_j,F_j]=\hess[F_j,F_j]+\lambda\mI\succ0$.
+Column $j$ is rounded from $\vw_j=\mW_{:,j}$ to $\vq_j$, leaving the residual $\delta_j=\vw_j-\vq_j\in\R^{d_{\mathrm{out}}}$, and every free column $k>j$ is updated by
 \begin{equation}
 \label{eq:obs}
-\Delta\vw_k=-\,\delta_j\,\frac{[\hess_\lambda^{-1}]_{jk}}{[\hess_\lambda^{-1}]_{jj}},\qquad \hess_\lambda=\hess+\lambda\mI,
+\Delta\vw_k=-\,\delta_j\,\frac{[\hess_{\lambda,j}^{-1}]_{jk}}{[\hess_{\lambda,j}^{-1}]_{jj}} .
 \end{equation}
-the change that best cancels the effect of $\delta_j$ on the layer output under \cref{eq:layerwise}.
+The step changes no column outside $F_j$, so it perturbs the output at position $t$ by $\Delta\vy_t^{(j)}=\Delta\mW^{(j)}[:,F_j]\,\vx_{t,j}$, and the next step rounds an already-modified column with the free set $F_{j+1}$.
+RTN performs the same rounding without \cref{eq:obs}; the update is the whole difference between the two.
 
-\subsection{Two sides of the curvature}
-\label{sec:mechanism:sides}
-\begin{lemma}[two-sided curvature]
-\label{lem:twosides}
-Let $L$ be the loss of the network and $\vy_t=\mW\vx_t$.
-To second order in $\Delta\mW$,
+\subsection{Objective mismatch: reconstruction protects the wrong positions}
+\label{sec:mechanism:mismatch}
+The layer-wise reconstruction objective measures how much a perturbation changes the output of the current layer, but not how costly that change is to the rest of the network.
+To make the missing output side explicit, let $L$ be the loss of the network on the calibration set.
+Expanding $L$ to second order in $\Delta\mW$, and neglecting the first-order term as in OBS and cross-position blocks, gives, up to the factor $\tfrac12$ of the expansion, the position-diagonal quadratic term
 \begin{equation}
 \label{eq:twosides}
-\Delta L=\tfrac12\sum_{t}(\Delta\mW\vx_t)^\top\mG_t(\Delta\mW\vx_t)+o(\|\Delta\mW\|^2),\qquad \mG_t=\frac{\partial^2L}{\partial\vy_t\,\partial\vy_t^\top},
+\mathcal{E}_{\mathrm{down}}(\Delta\mW)
+=
+\sum_t
+(\Delta\mW\vx_t)^\top
+\mG_t
+(\Delta\mW\vx_t),
+\qquad
+\mG_t
+=
+\frac{\partial^2 L}
+     {\partial\vy_t\,\partial\vy_t^\top}.
 \end{equation}
-so the Hessian of $L$ in $\operatorname{vec}(\mW)$ is $\sum_t\vx_t\vx_t^\top\otimes\mG_t$ \citep{martens2015kfac}, and \cref{eq:layerwise} is the case $\mG_t\equiv\mI$.
-\end{lemma}
-The substitution keeps the input side, which is free, and drops the output side, which needs a backward pass.
-It is harmless only if $\mG_t$ is roughly the same at every position.
-We write $\gsens=\|\partial L/\partial\vy_t\|^2$ for the output-side sensitivity at $t$ and $A_c$, $G_c$ for the shares of $\sum_t\|\vx_t\|^2$ and $\sum_t\gsens$ on a class $c$ of positions.
-\begin{proposition}[position mismatch]
-\label{prop:mismatch}
-At the sink-forming down-projection of an instruction-tuned model, $A_{\bos}\ge\AbosMin$ (Llama \LAbos{}, Qwen \QAbos{}) and $G_{\bos}\le\GbosMax$, while $\gsens$ concentrates on the first \Gshare{} of positions, the template tokens, at $10^3$ to $10^5$ times the per-token median (\cref{fig:ag}).
-\end{proposition}
-The first half is the sink: the residual stream at \bos{} has grown to a norm of several hundred \citep{sun2024massive}, and \cref{eq:layerwise} weights each token by the square of that norm.
-The second half follows from the normalisation in front of the next layer.
-\begin{lemma}[gradient attenuation at the sink]
-\label{lem:rmsnorm}
-For $\vh\mapsto\vh/\operatorname{rms}(\vh)$ the Jacobian has operator norm $O(1/\operatorname{rms}(\vh))$, so the gradient reaching the sink position through the normalised path is attenuated by that factor relative to ordinary positions \citep{chen2026gradientsinks}.
-\todo{collaborator: statement including the residual path, and proof.}
-\end{lemma}
-The output side is large at the template tokens because the response attends to them through the sink, so an error written there is read at every generated token.
-The objective thus optimises the one position the loss ignores and is blind to the positions it depends on.
-This blind spot is a property of the objective and of the activation statistics, not of a quantiser, which is why AutoRound shares the failure (\cref{sec:phenomenon}).
-\begin{figure}[t]
-\begin{center}
-\fig{fig3_ag}{0.9\linewidth}
-\end{center}
-\caption{Input-side share $A_{\bos}$ against output-side share $G_{\bos}$ at the sink-forming down-projection for \nSink{} models with an attention sink and the two gemma-2 models without one. \todo{plot from runs/sides/*.csv}}
-\label{fig:ag}
-\end{figure}
+Standard layer-wise reconstruction instead minimizes \cref{eq:layerwise}, $\mathcal{E}_{\mathrm{layer}}(\Delta\mW)=\sum_t\|\Delta\mW\vx_t\|^2=\operatorname{tr}[\Delta\mW\hess\Delta\mW^\top]$.
+Relative to \cref{eq:twosides}, this objective replaces the output metric $\mG_t$ by the same identity at every position, $\mathcal{E}_{\mathrm{layer}}=\mathcal{E}_{\mathrm{down}}$ with $\mG_t\equiv\mI$. It therefore retains the input-side geometry $\vx_t\vx_t^\top$ but ignores how strongly an output error at position $t$ affects the loss.
+The substitution loses nothing for GPTQ when $\mG_t$ is the same at every position (\cref{prop:tokenlevel}(a)), but can change where the error is placed when $\mG_t$ varies across positions. We therefore compare the positional distributions of input-side curvature and downstream sensitivity through $a_t=\|\vx_t\|^2$ and $g_t=\|\partial L/\partial\vy_t\|^2=\operatorname{tr}[(\partial L/\partial\vy_t)(\partial L/\partial\vy_t)^{\top}]$.
+Here $g_t$ is the trace of the empirical-Fisher block of position $t$, a measurable proxy for the scale of $\mG_t$ rather than the block itself; like $\vx_0$, $g_0$ is accumulated over the calibration samples.
 
-\subsection{What the compensation does when one token owns the curvature}
+
+\begin{proposition}[Position mismatch]
+\label{prop:mismatch}
+At the sink-forming down-projection, the \bos{} position carries most of the input-side curvature but almost none of the measured downstream sensitivity: $A_{\bos}=a_0/\sum_t a_t\ge\AbosMin{}$ and $G_{\bos}=g_0/\sum_t g_t\le\GbosMax{}$.
+Specifically, $A_{\bos}=\AbosOne{}$ for Llama and $\QAbos{}$ for Qwen. The downstream sensitivity instead concentrates on the early template
+positions.
+\end{proposition}
+The attention sink thus makes the two distributions nearly opposite (\cref{fig:ag} shows both shares for 28 models; \cref{app:extra} confirms by injection and activation patching that the loss depends on the template positions), so the layer-wise objective spends most of its curvature on a position the loss barely depends on.
+The mismatch is harmless for RTN, which does not consult the objective, but potentially harmful in GPTQ, which redistributes rounding error to reduce \cref{eq:layerwise}.
+\Cref{eq:twosides} motivates the weight and is not a quantitative model of the lesion's cost: on Llama the cross-position terms cancel most of its block-diagonal value (\cref{app:negative}), so the surrogate is validated by intervention and repair (\cref{app:extra,sec:corrected}), not by a curvature fit.
+
+\subsection{Compensation turns objective mismatch into error misallocation}
 \label{sec:mechanism:rankone}
-Write $\hess_\lambda=\vx_0\vx_0^\top+\mM$ with $\mM=\sum_{t\ne0}\vx_t\vx_t^\top+\lambda\mI\succ0$ the curvature of the ordinary tokens, $\vv=\mM^{-1}\vx_0$ and $\kappa=\vx_0^\top\vv$.
-Under \cref{prop:mismatch}, $\kappa\gg1$ (\cref{app:extra}).
-\begin{theorem}[compensation under a dominant token]
+To see how GPTQ improves its objective while raising the error at individual positions, split the free-block curvature of step $j$ into its \bos{} part and the rest, and define
+\begin{equation}
+\label{eq:vkappa}
+\begin{gathered}
+\hess_{\lambda,j}=\vx_{0,j}\vx_{0,j}^\top+\mM_j,\qquad
+\mM_j=\sum_{t\ne0}\vx_{t,j}\vx_{t,j}^\top+\lambda\mI\succ0,\\
+\vv=\mM_j^{-1}\vx_{0,j},\qquad \kappa=\vx_{0,j}^\top\mM_j^{-1}\vx_{0,j},\qquad m_{kl}=[\mM_j^{-1}]_{kl},
+\end{gathered}
+\end{equation}
+with the step index suppressed on $\vv$, $\kappa$ and $m_{kl}$ and all indices running over $F_j$.
+$\mM_j$ is the curvature of the ordinary tokens plus damping, and $\kappa$ the dominance of \bos{} relative to it.
+Empirically, $\kappa\gg1$ at the sink-forming matrices: before the first column is rounded it is \KappaMed{} at Llama's and exceeds $10^{3}$ in fifteen of the \nSinkStats{} models with a sink (per model in \cref{tab:census_full}). It falls along the loop as the sink coordinates leave the free set (\cref{app:proofs:loop}).
+\begin{theorem}[Error redistribution under a dominant token]
 \label{thm:rankone}
-(a) For every column $j$ and unrounded column $k\ne j$, the update \cref{eq:obs} is exactly
+Fix a step $j$: column $j$ is rounded while the columns $k>j$ remain free.
+(a) The inverse curvature is exactly $\hess_{\lambda,j}^{-1}=\mM_j^{-1}-\vv\vv^\top/(1+\kappa)$, and the compensation of column $k>j$ is
 \begin{equation}
 \label{eq:exact}
-\Delta\vw_k=\delta_j\,\frac{v_jv_k/(1+\kappa)-[\mM^{-1}]_{jk}}{[\mM^{-1}]_{jj}-v_j^2/(1+\kappa)} .
+\Delta\vw_k=\delta_j\,\frac{v_jv_k/(1+\kappa)-m_{jk}}{m_{jj}-v_j^2/(1+\kappa)} .
 \end{equation}
-(b) If $\mM=\lambda\mI$ this reduces to $\Delta\vw_k=\delta_j\,x_{0j}x_{0k}/(\lambda+\|\vx_0\|^2-x_{0j}^2)$: the update is a multiple of $\vx_0$ restricted to the unrounded columns, and the output change at \bos{} is $-\delta_jx_{0j}\lambda/(\lambda+\|\vx_0\|^2-x_{0j}^2)\to0$.
-(c) In the same case the output change at any position $t$, to leading order in $\lambda/\|\vx_0\|^2$ and $x_{0j}^2/\|\vx_0\|^2$, is
+(b) Including the rounding of column $j$, the output perturbation at position $t$ is
 \begin{equation}
-\label{eq:error}
-e_t=\delta_j\,x_{0j}\,\frac{\vx_0^\top\vx_t}{\|\vx_0\|^2}\;-\;\delta_j\,x_{tj},
+\label{eq:outgen}
+\Delta\vy_t=-\,\delta_j\,\frac{[\mM_j^{-1}\vx_{t,j}]_j-v_j\,\vv^\top\vx_{t,j}/(1+\kappa)}{m_{jj}-v_j^2/(1+\kappa)},\qquad
+\Delta\vy_0=-\,\delta_j\,\frac{v_j}{(1+\kappa)\,m_{jj}-v_j^2}.
 \end{equation}
-so that after rounding a set $J$ of columns, row $r$ carries $e^{(r)}_t=c_r\,\vx_0^\top\vx_t/\|\vx_0\|^2+\eta^{(r)}_t$ with $c_r=\sum_{j\in J}\delta^{(r)}_jx_{0j}$ and $\eta^{(r)}_t=-\sum_{j\in J}\delta^{(r)}_jx_{tj}$, up to the interaction between successive steps.
+(c) In the isotropic case $\mM_j=\lambda\mI$, with $\|\vx_{0,j+1}\|^2=\|\vx_{0,j}\|^2-x_{0j}^2$,
+\begin{equation}
+\label{eq:iso}
+\begin{gathered}
+\Delta\vw_k=\delta_j\,\frac{x_{0j}x_{0k}}{\lambda+\|\vx_{0,j+1}\|^2},\qquad
+\Delta\vy_0=-\,\delta_jx_{0j}\,\frac{\lambda}{\lambda+\|\vx_{0,j+1}\|^2},\\
+\Delta\vy_t=-\,\delta_jx_{tj}+\delta_j\,x_{0j}\,\frac{\vx_{0,j+1}^\top\vx_{t,j+1}}{\lambda+\|\vx_{0,j+1}\|^2}.
+\end{gathered}
+\end{equation}
 \end{theorem}
-\begin{proof}
-(a) By Sherman--Morrison, $\hess_\lambda^{-1}=\mM^{-1}-\vv\vv^\top/(1+\kappa)$; substituting $[\hess_\lambda^{-1}]_{jk}=[\mM^{-1}]_{jk}-v_jv_k/(1+\kappa)$ into \cref{eq:obs} gives \cref{eq:exact}, and the denominator is positive because $\hess_\lambda\succ0$.
-(b) With $\mM=\lambda\mI$, $\vv=\vx_0/\lambda$ and $\kappa=\|\vx_0\|^2/\lambda$; for $k\ne j$ the off-diagonal $[\mM^{-1}]_{jk}$ vanishes and the ratio simplifies as stated.
-The rounding itself changes column $j$ by $-\delta_j$, so the output change at \bos{} is $-\delta_jx_{0j}+\sum_{k\ne j}\Delta\vw_kx_{0k}=-\delta_jx_{0j}\big(1-\tfrac{\|\vx_0\|^2-x_{0j}^2}{\lambda+\|\vx_0\|^2-x_{0j}^2}\big)$.
-(c) The same sum at a general position gives $-\delta_jx_{tj}+\delta_jx_{0j}(\vx_0^\top\vx_t-x_{0j}x_{tj})/(\lambda+\|\vx_0\|^2-x_{0j}^2)$, whose leading terms are \cref{eq:error}; summing over $J$ row by row gives the decomposition.
-\todo{collaborator: the interaction between successive steps under act-order (largest $x_{0j}^2$ first), the size of the neglected terms for general $\mM$ in terms of $\kappa$ and $\|\mM^{-1}\|$, and the order of $\eta$ for a grid step $\Delta$.}
-\end{proof}
-\cref{eq:exact} separates the update into the ordinary OBS compensation through the other tokens' curvature, $[\mM^{-1}]_{jk}$, and a rank-one term along $\vv=\mM^{-1}\vx_0$, the sink pattern whitened by the ordinary tokens.
-The rank-one term dominates exactly on the columns where $\vx_0$ carries its mass, and act-order rounds those columns first.
-\cref{eq:error} separates the resulting output error into a deterministic part proportional to the overlap $\vx_0^\top\vx_t$ of a position with the sink pattern, and the plain rounding error $-\delta_jx_{tj}$ that RTN would also produce.
-\begin{corollary}[the shape of the lesion]
-\label{cor:shape}
-(i) The compensated error of the matrix is rank-one along $\vx_0$, largest in the rows $r$ with the largest $c_r$, that is, the largest rounding errors on the channels where $\vx_0$ is large; on those rows the update can exceed the group range.
-(ii) The output error at a position is the overlap term plus a noise floor: positions whose activation shares the sink direction are damaged in proportion to the overlap, positions orthogonal to it see only rounding noise.
-(iii) The relative size of the deterministic term is governed by $\kappa=\vx_0^\top\mM^{-1}\vx_0$; anything that lowers $\kappa$ shrinks it.
-\end{corollary}
-(i) is the row-\LsinkRow{} concentration and the clipping of \cref{sec:lesion}; (ii) is the template-versus-response contrast, with the noise floor visible in the flat middle quintiles of overlap; (iii) accounts for every remedy found by trial: damping raises $\lambda$ inside $\mM$, token normalisation divides $\vx_0$ by its norm, chat-formatted calibration adds template activations to $\mM$, long windows add ordinary tokens to $\mM$, and re-rounding removes the update.
-None of them restores the output side, which is why each has a failure case (\cref{sec:corrected}).
 
-\subsection{Why the correction must be on the token axis}
+\cref{thm:rankone} gives the central mechanism. In the isotropic case of \cref{eq:iso} the first term of $\Delta\vy_t$, $-\delta_jx_{tj}$, is the rounding error RTN would also leave; the second is what the compensation adds. At \bos{} the compensation suppresses this error by a factor $1/(1+\kappa_{j+1})$, $\kappa_{j+1}=\|\vx_{0,j+1}\|^2/\lambda$: when \bos{} dominates the curvature, GPTQ protects \bos{} by redistributing its rounding error onto the remaining coordinates, which improves the layer-wise objective while raising the error at the positions the loss depends on. Objective mismatch becomes error misallocation.
+
+In \cref{eq:exact} the \bos{}-induced component is rank one along $\vv=\mM_j^{-1}\vx_{0,j}$ and, under act-order, strongest in the early steps, when the sink-carrying coordinates are rounded first; \cref{sec:mechanism:signatures} turns this structure into testable signatures.
+
+\subsection{Signatures of the lesion}
+\label{sec:mechanism:signatures}
+
+Under the isotropic assumption $\mM_1=\lambda\mI$,  \cref{thm:rankone} yields three directly testable signatures: where the error is written, which positions read it out, and what sets its amplitude.
+
+\begin{corollary}[Signatures of sink-induced redistribution]
+\label{cor:shape}
+Assume $\mM_1=\lambda\mI$, so that $\mM_j=\lambda\mI$ at every step, and let $J$ be the leading block of sink-carrying
+columns.
+By \cref{eq:iso}, step $j$ updates every later column $k>j$ by $\Delta\vw^{(j)}_k=\gamma_j\,x_{0k}\,\delta_j$ with $\gamma_j=x_{0j}/(\lambda+\|\vx_{0,j+1}\|^2)$.
+
+(i) \emph{Direction and row concentration.} 
+For $k > \max J$, the accumulated sink-induced update satisfies $\Delta\mW^{\mathrm{sink}}_{r,k}=c_r x_{0k}, c_r=\sum_{j\in J}\gamma_j\delta_j^{(r)}$. Thus each affected row follows the sink pattern $\vx_0$, while the accumulated rounding residuals $c_r$ determine its magnitude across rows.
+
+(ii) \emph{Readout.}
+The step $j$ updates the output at position $t$ by
+$
+\gamma_j\,\big(\vx_{0,j+1}^\top\vx_{t,j+1}\big)\,\delta_j :
+$
+positions whose remaining activations overlap more with the sink pattern
+receive more redistributed error.
+
+(iii) \emph{Amplitude.}
+The coefficient of each update factorizes as $\gamma_j\,x_{0k}=\frac{\kappa_{j+1}}{1+\kappa_{j+1}}\cdot\frac{x_{0j}\,x_{0k}}{\|\vx_{0,j+1}\|^2}$.
+The first factor is the share of the \bos{} rounding error that the step cancels. It is close to one when \bos{} dominates the remaining curvature and close to zero otherwise.
+The second factor is at most $|x_{0j}/x_{0k}|$. It can exceed one when $\vx_0$ is concentrated on few coordinates, as the sink is \citep{sun2024massive}.
+Together, the two factors can make the update larger than the residual it compensates and can push weights beyond their original range.
+\end{corollary}
+
+For general $\mM_j$, the per-step directions differ: (i) becomes a coherent
+component along the sink pattern and (ii) an overlap with
+$\vv=\mM_j^{-1}\vx_{0,j}$ in place of $\vx_{0,j}$ (\cref{app:proofs:shape}).
+
+\paragraph{What is measured.}
+All three hold at Llama's sink matrix (\cref{fig:lesion} and full values in \cref{app:extra}) and across the census (\cref{sec:universality}): the compensation pattern has cosine \PatCosBos{} with $\vx_0$ in \nPatHit{} of \nPatAll{} sink matrices and \LrowShare{} of the template-position error lies in the super-weight row \citep{yu2024superweight}; that error is \LtplErrGPTQ{} for GPTQ against \LtplErrRTN{} for RTN and 0.4 times RTN's at \bos{} (\cref{fig:teaser}); the largest compensated entry is \LmaxQ{} where the largest original weight is \LmaxW{}.
+The partly failed prediction of \cref{sec:intro} is the readout: token by token, the overlap places the template positions on Qwen (recall \IsoRecall{}) but not on Llama (\LIsoRecall{}).
+
+
+\subsection{Restoring the output side on the token axis}
 \label{sec:mechanism:restore}
-\begin{proposition}[token-level weights act, channel-level factors cancel]
+The repair is to put the output side of \cref{eq:twosides} back where the compensation can see it. A position-independent output-channel factor cannot do this, including K-FAC \citep{martens2015kfac}, whose curvature for a linear layer is the Kronecker product of $\hess$ with an output factor averaged over positions.
+\begin{proposition}[Token-level weights act, channel-level factors do not]
 \label{prop:tokenlevel}
-(a) A curvature $\hess\otimes\mG$ with a diagonal output-side factor $\mG=\operatorname{diag}(\gamma_1,\dots,\gamma_{d_{\mathrm{out}}})$ leaves the update \cref{eq:obs} unchanged.
-(b) With $\hessw=\sum_t\wtok\vx_t\vx_t^\top$, $\wtok=\gsens/\|\vx_t\|^2$, the share of $\operatorname{tr}\hessw$ contributed by \bos{} is $G_{\bos}$; under \cref{prop:mismatch} it is at most \GbosMax{}, and the dominant token of \cref{thm:rankone} no longer exists.
-(c) $\hessw$ is the per-token-whitened, diagonal-$\mG_t$ approximation of the curvature in \cref{eq:twosides}.
+(a) Let $\mG\succeq0$ be independent of position.
+Replacing \cref{eq:layerwise} by $\operatorname{tr}[\mG\,\Delta\mW\hess\Delta\mW^\top]$ leaves the column-wise compensation \cref{eq:obs} unchanged; if $\mG$ is diagonal with positive entries, it leaves the nearest-grid rounding within each row unchanged as well.
+(b) Let $\hessw=\sum_t\wtok\vx_t\vx_t^\top$ with $\wtok=\gsens/\|\vx_t\|^2$.
+Then $\operatorname{tr}\hessw=\sum_t\gsens$, so the \bos{} share of the weighted trace is $G_{\bos}\le\GbosMax{}$ rather than $A_{\bos}$, and the trace no longer singles out \bos{}.
+With $\wtok=\gsens$ alone the share is $g_0a_0/\sum_t\gsens a_t$, which is \AGbosL{} for Llama and \AGbosQ{} for Qwen: the dominant token survives.
 \end{proposition}
-\begin{proof}
-(a) The objective $\operatorname{tr}[\Delta\mW\hess\Delta\mW^\top\mG]=\sum_r\gamma_r\,\Delta\vw^{(r)}\hess\,\Delta\vw^{(r)\top}$ is a sum over rows with a positive scalar per row; the minimiser of each row's term, and hence the column-wise update, does not depend on $\gamma_r$.
-(b) $\operatorname{tr}\hessw=\sum_t\wtok\|\vx_t\|^2=\sum_t\gsens$, and the \bos{} term is $g_0$.
-(c) Replace $\mG_t$ in \cref{eq:twosides} by $(\gsens/d_{\mathrm{out}})\mI$ and rescale each $\vx_t$ to unit norm; the resulting quadratic form in $\Delta\mW$ is $\operatorname{tr}[\Delta\mW\hessw\Delta\mW^\top]$ up to the constant.
-\todo{collaborator: (c) as a statement about the approximation error; and the remark that a weight on the token axis is the only place in \cref{eq:layerwise} where the output side can enter without changing the column-wise update, which is the boundary with \citet{lee2026kronq}.}
-\end{proof}
-Two limits of the theory should be stated.
-It is local to one matrix and, in (c), first order: it predicts the lesion, its direction and its victims, not why the same lesion is harmless in one background and fatal in another (\cref{sec:lesion}).
-And \cref{cor:shape}(ii) holds at the extremes of overlap; the middle sixty percent of positions sit at the noise floor $\eta$.
+The weighted objective is $\operatorname{tr}[\Delta\mW\hessw\Delta\mW^\top]=\sum_t\gsens\,\|\Delta\mW\vx_t/\|\vx_t\|\|^2$, that is \cref{eq:twosides} with each $\mG_t$ replaced by $\wtok\mI$: the normalization removes the activation-energy dominance that (b) shows $\gsens$ alone cannot remove, and $\gsens$ restores the measured downstream sensitivity (\cref{app:proofs:tokenlevel}); $\hessw$ is a sensitivity-aligned surrogate of the downstream Hessian, not that Hessian.
+\cref{sec:corrected} tests it, and (b) predicts the outcome of its ablation.
+

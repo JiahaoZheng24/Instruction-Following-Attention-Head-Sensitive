@@ -1,0 +1,2 @@
+model=/store01/yshi4/jzheng7/models/f-l-rtn3-inj-31
+inject layer=1 beta=8.0 pos=2-7 tokens=- n_injected=3246 n_injected_tok=0

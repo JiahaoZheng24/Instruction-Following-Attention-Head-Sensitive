@@ -1,0 +1,3 @@
+target=/store01/yshi4/jzheng7/models/f-l-short-tgt84-4
+donor=/store01/yshi4/jzheng7/models/f-l-c4win-donor84-4
+layers=0-1:down_proj proj=0-1:down_proj

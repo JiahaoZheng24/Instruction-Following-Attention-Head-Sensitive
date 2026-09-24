@@ -1,0 +1,37 @@
+class,cos_with_bos_dir,rel_err,energy_share_on_bos_dir
+bos,-0.9797,0.0813,0.9598
+tpl,-0.2405,1.1178,0.5660
+rest,-0.7363,0.5368,0.5794
+pos2,0.5997,0.3449,nan
+pos3,-0.8699,0.6964,nan
+pos4,0.8825,3.5777,nan
+pos5,-0.9295,1.2741,nan
+pos6,-0.6036,0.3536,nan
+pos7,-0.5222,0.4600,nan
+prompt_newline(n=80),-0.8075,0.7913,nan
+prompt_ordinary(n=1092),-0.2472,0.5555,nan
+prompt_template(n=64),-0.0224,0.9691,nan
+resp_newline(n=20),-0.4573,0.4112,nan
+resp_ordinary(n=1919),-0.1438,0.3367,nan
+resp_template(n=1),0.9377,1.8385,nan
+"iso_q1(n=632,tpl_frac=0.12,tpl_recall=0.51)",nan,0.6967,0.0343
+"iso_q2(n=632,tpl_frac=0.08,tpl_recall=0.34)",nan,0.5874,0.0765
+"iso_q3(n=632,tpl_frac=0.01,tpl_recall=0.04)",nan,0.6059,0.1078
+"iso_q4(n=632,tpl_frac=0.00,tpl_recall=0.00)",nan,0.5513,0.1455
+"iso_q5(n=632,tpl_frac=0.03,tpl_recall=0.11)",nan,1.7568,12.3965
+iso_pearson linear=0.986 log=0.341 spearman=0.139 n=3160,0.9862,0.3408,0.1395
+"white_q1(n=632,tpl_frac=0.06,tpl_recall=0.24)",nan,0.5496,0.0026
+"white_q2(n=632,tpl_frac=0.04,tpl_recall=0.15)",nan,0.5430,0.0084
+"white_q3(n=632,tpl_frac=0.05,tpl_recall=0.22)",nan,0.6067,0.0146
+"white_q4(n=632,tpl_frac=0.04,tpl_recall=0.16)",nan,0.6458,0.0229
+"white_q5(n=632,tpl_frac=0.05,tpl_recall=0.22)",nan,1.8531,8.5881
+white_pearson linear=0.986 log=0.433 spearman=0.235 n=3160,0.9863,0.4328,0.2354
+"row_q1(n=632,tpl_frac=0.00,tpl_recall=0.01)",nan,0.4487,0.0413
+"row_q2(n=632,tpl_frac=0.00,tpl_recall=0.02)",nan,0.4337,0.1302
+"row_q3(n=632,tpl_frac=0.02,tpl_recall=0.09)",nan,0.4654,0.2278
+"row_q4(n=632,tpl_frac=0.08,tpl_recall=0.34)",nan,0.6012,0.3545
+"row_q5(n=632,tpl_frac=0.13,tpl_recall=0.54)",nan,2.2492,1.2052
+row_pearson linear=0.990 log=0.530 spearman=0.583 n=3160,0.9904,0.5300,0.5835
+"rowshare_template(row=1384,n=49)",nan,15.5257,0.3628
+"rowshare_newline(row=1384,n=100)",nan,0.8561,0.2770
+"rowshare_ordinary(row=1384,n=3011)",nan,0.6001,0.1438

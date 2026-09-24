@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+lib_q14_128,0.7043,0.7794,0.7412,0.8129,0.7594

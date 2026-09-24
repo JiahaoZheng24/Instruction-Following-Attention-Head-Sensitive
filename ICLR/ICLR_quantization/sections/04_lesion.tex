@@ -1,32 +1,24 @@
-\section{The lesion: one matrix, one direction}
+\section{The lesion}
 \label{sec:lesion}
-We call the concentrated part of the damage the \emph{lesion} and characterise it by excising it, measuring its geometry and transplanting it; \cref{tab:lesion,tab:transplant} in the appendix list every arm.
+Before deriving a mechanism we locate the damage among the 224 quantized matrices, excise it and transplant it (\cref{tab:lesion,tab:transplant}); we call its concentrated part the \emph{lesion}.
 
 \paragraph{Where it is.}
-Comparing hidden states of the collapsed and the full-precision Llama model position by position singles out one position and one depth: at the output of layer 2, the relative error at position \LlesionPos{}, the token \texttt{<|end\_header\_id|>} that closes the chat header, is \LposErr{}, against \LposErrRest{} elsewhere; for Qwen it is \QsinkTok{} at the output of layer 5 (\QposErr{}).
-These are the positions where the attention sink forms, and the matrix that writes the sink state is the MLP down-projection of the sink-forming layer, layer 1 for Llama and layer \QlesionLayer{} for Qwen.
-Re-rounding that one matrix with RTN, with the other 223 quantised matrices of Llama untouched, raises IFEval from \LgptqIF{} to \LoneMatrixIF{} (re-rounding the down-projections of the first two blocks, \LzeroBitIF{}); for Qwen, from \QgptqIF{} to \QoneMatrixIF{}.
-The repair adds no bits; it removes the compensation, so the damage is in what the OBS step did, not in the precision.
-Keeping the attention projections of the first three layers at full precision does not help (\LearlyAttnIF{}), nor does keeping the five largest rows of the matrix (\LswRowsIF{}).
-
-\paragraph{What it looks like.}
-At this matrix the input at the \bos{} position has norm \LbosNorm{} against \LrestNorm{} elsewhere, and \bos{} contributes a share \LAbos{} (Llama) and \QAbos{} (Qwen) of $\operatorname{tr}\hess$.
-In the quantised matrix, the linear error on template tokens is \LtplErrGPTQ{} for GPTQ against \LtplErrRTN{} for RTN, \LrowShare{} of the error sits in row \LsinkRow{}, the super-weight row of this model \citep{yu2024superweight}, and the largest compensated entry is \LmaxQ{} where the original matrix has \LmaxW{}: weights were pushed past their group range and clipped.
-In the activations the error is one direction: with $\sinkdir$ the \bos{} hidden state after this layer, the difference between collapsed and full-precision states has cosine \LcosU{} with $\sinkdir$ at the lesion position; along a prompt it is largest on template and newline tokens (\LtplTokErr{} against \LordTokErr{} for ordinary tokens; Qwen \QnlTokErr{} against \QordTokErr{}) and smallest on the response (\LrespTokErr{}).
-The damage is written into the matrix along the \bos{} pattern and read out wherever a token overlaps that pattern (\cref{fig:lesion}); \cref{sec:mechanism} derives both facts.
-\begin{figure}[t]
-\begin{center}
-\fig{fig2_lesion}{0.95\linewidth}
-\end{center}
-\caption{Anatomy of the lesion (Llama-3.1-8B-Instruct). (a) Row-wise error of the sink-forming down-projection after GPTQ and after RTN. (b) Relative hidden-state error by token class along an IFEval prompt and response. (c) Cosine of the hidden-state error with $\sinkdir$ by position. \todo{plot from runs/stats/f-l-3b and runs/sink/f\_l\_artifact.csv}}
-\label{fig:lesion}
-\end{figure}
+Comparing hidden states of the collapsed and the full-precision Llama singles out one position and one depth: at the output of layer 2 the relative error at position \LlesionPos{}, the token \texttt{<|end\_header\_id|>} that closes the chat header, is \LposErr{} against \LposErrRest{} elsewhere; for Qwen it is \QsinkTok{} at the output of layer 5 (\QposErr{}).
+These are the depths at which the attention sink forms and the positions that act as secondary sinks, and the matrix that writes the sink state is the MLP down-projection of the sink-forming layer, layer 1 for Llama and layer \QlesionLayer{} for Qwen.
+Re-rounding that matrix without compensation removes what the compensation wrote: with the other 223 matrices untouched, Llama rises from \LgptqIF{} to \LoneMatrixIF{} and Qwen from \QgptqIF{} to \QoneMatrixIF{}, while the attention projections of the first three layers (\LearlyAttnIF{}) or the five largest rows of the matrix (\LswRowsIF{}) at full precision do not help: not an attention defect, not the super weights' magnitude, but what the compensation wrote around them.
 
 \paragraph{Necessary, not sufficient.}
-Because the lesion is a matrix, its sufficiency can be tested by copying it into other networks.
-Inside the full-precision network it costs almost nothing (\TPfp{}), and inside the RTN network four points (\TPrtn{}): a lesion alone does not collapse a model.
-Inside a GPTQ-quantised network it does, and not only its own.
-Copied into the window-calibrated GPTQ network, which is healthy on its own (\LcwinIF{}), the short-document lesion collapses it (\TPcwin{}); copied the other way, the window checkpoint's version of the matrix, harmless in its own network, collapses the short-document network (\TPshort{}).
-GPTQ quantises layers in sequence on the propagated activations, so every layer after the first was compensated against the particular errors of its own sink-forming matrix; a matrix from another calibration run is foreign to that solution, and the network that tolerates its own lesion does not tolerate a foreign one.
-Fatality is therefore a property of the joint solution, the lesion together with the layers quantised after it, which we call the \emph{background}; excision shows the lesion is necessary, the fp16 and RTN transplants show it is not sufficient, and transplants between GPTQ checkpoints cannot separate the two further.
-Collapse needs a lesion of the kind derived next and a background that amplifies it; the first we derive and repair, the second we can only demonstrate (\cref{sec:universality}).
+Copied into the full-precision Llama the lesion costs almost nothing (\TPfp{}), into the RTN network four points (\TPrtn{}), and Qwen's costs the full-precision Qwen \TPqfpDrop{} points (\TPqfp{}), short of collapse: one matrix does not collapse a model on its own.
+Inside a GPTQ-quantized network it does, and not only its own: copied into the healthy window-calibrated network (\LcwinIF{}) it collapses it (\TPcwin{}), and the window checkpoint's matrix, which its own network tolerates, does not cure the collapsed short-document network (\TPshort{}) whereas the RTN version of the same matrix does (\LoneMatrixIF{}).
+\paragraph{What else it needs.}
+Not the layers quantized after it: rounding every matrix from layer $k$ onward to nearest, for $k$ from 2 to 24, leaves the collapse intact (\RtnTailRange{}), whereas the same lesion inside an all-RTN network scores \TPrtn{}.
+Transplanting subsets of the first two layers into the RTN network (\cref{tab:sets}; single draws, seed noise \SeedNoise{} points) isolates the one thing it needs, the down-projection of layer 0: the two down-projections together collapse the RTN network (\TwoDownIF{}), as does every tested set containing them, including all fourteen matrices of the two layers (\LfourteenIF{}), and every tested set without the layer-0 down-projection is healthy, among them the whole of layer 1 with the lesion inside it (\LoneWholeIF{}).
+This pair is Llama's minimal collapsing set; each matrix is necessary, since removing either cures (\LrtnZeroDownIF{}, \LoneMatrixIF{}) and neither alone does anything (\LzeroAloneIF{}, \LoneAloneIF{} against \LrtnIF{}).
+The layer-0 down-projection is a weaker copy of the same object (\bos{} share of its Hessian trace \AbosZero{} against \AbosOne{} at layer 1 and at most \AbosRest{} elsewhere; overshoot and row concentration in \cref{app:extra}), and \bos{}-heavy only under short documents, where a \bos{} token arrives every few hundred tokens: its share is \AbosZeroWin{} under C4 windows and \AbosZeroPile{} under Pile windows, the protocols Llama survives.
+Only excision tests this, since a foreign GPTQ matrix is fatal in any GPTQ background: the window version of the layer-0 matrix leaves the collapse (\LcwinZeroSwapIF{}), the window versions of both cure it (\LcwinPairSwapIF{}).
+The set is model-dependent: on Qwen the sink-forming down-projection alone collapses the RTN network (\QlesionRtnIF{}, below the fully quantized network's \QgptqIF{}), the second matrix adds nothing and excising both cures (\QtwoMatrixIF{}); on Mistral the window collapse needs the fourteen matrices of layers 0 and 1 (\MfourteenIF{}) but neither the down-projections (\MfourDownIF{}) nor layer 1 alone (\MlayerOneIF{}), a phenotype we localize but do not resolve.
+\paragraph{Fatal wherever nothing absorbs it; the neighbors decide.}
+The calibration draw that leaves Llama healthy (\LgptqSeedIF{}) writes a pair as fatal to the RTN network as the collapsing draw's (\LseedOnePairIF{} against \TwoDownIF{}), but its fourteen matrices of layers 0 and 1 together score \LseedOneFourteenIF{}, its own value, where the collapsing draw's score \LseedZeroFourteenIF{}; Tulu-3, the same base model under the same protocol, is healthy at \TuluGptqIF{} while its pair collapses its RTN network to \TuluPairIF{} (RTN \TuluRtnIF{}); and Qwen's window-calibrated sink matrix, from a protocol the model survives, collapses the RTN network to \QcwinLesionRtnIF{}.
+So the lesion, with its layer-0 copy on Llama, collapses every RTN network we tried, where nothing is fitted around it, and a GPTQ network survives only when the matrices quantized after the lesion, solved on activations that already carry it, absorb it: on Llama the twelve other matrices of the first two layers, since rounding everything later to nearest changes nothing; on Qwen not yet localized.
+Protocol and draw thus act on different links: short documents decide whether Llama's second sink exists, the draw whether its neighbors absorb the pair.
+\Cref{sec:mechanism} applies to each lesion; what it does not give is the absorption.

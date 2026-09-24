@@ -1,0 +1,27 @@
+\begin{table}[t]
+\caption{The levers of \cref{thm:rankone}: what each remedy moves and what it
+does (IFEval, 3 bits, Llama-3.1-8B / Qwen2.5-14B under short documents). The
+last row is not a lever but the repair of \cref{sec:corrected}. Token
+normalization is $\wtok=1/\|\vx_t\|^2$, the corrected objective
+$\wtok=\gsens/\|\vx_t\|^2$; Mistral-7B-v0.3 values are under C4 windows.}
+\label{tab:levers}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+
+\begin{tabular}{l>{\raggedright\arraybackslash}p{3.2cm}c>{\raggedright\arraybackslash}p{4.3cm}}
+\toprule
+Lever & Quantity moved & Llama / Qwen & Limitation \\
+\midrule
+GPTQ, 3 bits & --- & \LgptqIF{} / \QgptqIF{} & \\
+RTN, 3 bits & no compensation & \LrtnIF{} / \QrtnIF{} & \\
+\midrule
+Damping, $\rho=5$ & $\lambda$ in $\mM_j$ rises, $\kappa$ falls & \LdampFiveIF{} / \QdampFiveIF{} & fails at $\rho=0.2$ (Llama \LdampPtTwoIF{}); Llama GSM8K \LdampFiveGSM{} vs \LzeroBitGSM{} \\
+Token normalization & every $\|\vx_t\|\to1$: no dominant token & \LtnormIF{} / \QtnormIF{} & fails on Mistral (\MtnormIF{} vs RTN \MrtnIF{}) \\
+Chat calibration & template activations enter $\mM_j$ & \LcchatIF{} / \QcchatIF{} & fails on Qwen3-14B at 4 bits (\QthreeFourChatIF{} from \QthreeFourGptqIF{}) \\
+Rotation (QuaRot) &  $\vx_0$ spread out & \LrotIF{} / \QrotIF{} & changes the inference path; tested on Llama and Qwen only \\
+Re-rounding sink matrix & \cref{eq:obs} removed at one matrix & \LoneMatrixIF{} / \QoneMatrixIF{} & needs the matrix located first \\
+\midrule
+Corrected objective & output side restored (\cref{prop:tokenlevel}) & \LcorrIF{} / \QcorrIF{} & Llama MMLU \LcorrMMLU{}, GSM8K \LcorrGSM{} vs \LzeroBitGSM{} \\
+\bottomrule
+\end{tabular}
+\end{table}

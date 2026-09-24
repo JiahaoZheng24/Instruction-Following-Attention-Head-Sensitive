@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/w92_f_q14_gar
+heads=[]
+n=0

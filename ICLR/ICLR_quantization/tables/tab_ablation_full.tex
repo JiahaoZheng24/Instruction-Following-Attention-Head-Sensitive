@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\caption{The corrected objective and its two halves (IFEval, 3 bits; second calibration seed in parentheses). Short documents: 128 C4 documents tokenized separately; windows: 128 random windows of 2,048 tokens. Token normalization is $\wtok=1/\|\vx_t\|^2$, output weighting is $\wtok=\gsens$, the corrected objective $\wtok=\gsens/\|\vx_t\|^2$; ``capped'' caps $\gsens$ at one hundred times its median inside the corrected objective; the position prior is token normalization with the first eight positions of every document weighted $\times10$ / $\times100$, no gradient.}
+\label{tab:ablation_full}
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llccccccc}
+\toprule
+Model & Calib. & GPTQ & RTN & tnorm & out. w. & corrected & corr. capped & prior $\times10$/$\times100$ \\
+\midrule
+Llama-3.1-8B    & short docs & \LgptqIF{} & \LrtnIF{} & \LtnormIF{}     & \LgonlyIF{}     & \LcorrIF{} (\LcorrSeedIF{}) & \LcorrCapIF{} & \PosWtenIF{}/\PosWhundredIF{} \\
+Llama-3.1-8B    & Pile win.  & \LpileIF{} & \LrtnIF{} & \LpileTnormIF{} & \LpileGonlyIF{} & \LpileCorrIF{}              & --            & -- \\
+Qwen2.5-14B     & short docs & \QgptqIF{} & \QrtnIF{} & \QtnormIF{}     & \QgonlyIF{}     & \QcorrIF{} (\QcorrSeedIF{}) & \QcorrCapIF{} & -- \\
+Qwen2.5-14B     & Pile win.  & \QpileIF{} & \QrtnIF{} & --              & \QpileGonlyIF{} & \QpileCorrIF{}              & --            & -- \\
+Mistral-7B-v0.3 & C4 win.    & \MgptqIF{} & \MrtnIF{} & \MtnormIF{}     & \MgonlyIF{}     & \McorrIF{} (\McorrSeedIF{}) & \McorrCapIF{} & \MposTenIF{}/\MposHundredIF{} \\
+Mistral-Nemo    & short docs & \NgptqIF{} & \NrtnIF{} & \NtnormIF{}     & \NgonlyIF{}     & \NcorrIF{}                  & --            & -- \\
+\midrule
+\multicolumn{9}{p{12.6cm}}{Output weighting alone with the cap, Llama short docs: \LcapIF{}. Damping of the corrected objective, Llama short docs: $\rho=0.01$ \CorrRhoLow{}, $0.05$ \LcorrIF{}, $0.2$ \CorrRhoHigh{}. Corrected objective with the first eight positions' weight removed: Llama \CorrPosDropIF{}, Mistral \McorrPosDropIF{}.} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

@@ -1,6 +1,28 @@
 \section{Additional results}
 \label{app:extra}
+\begin{figure}[t]
+\begin{center}
+\fig{fig3_ag}{0.62\linewidth}
+\end{center}
+\caption{The blind spot (\cref{prop:mismatch}) across models. Input-side share $A_{\bos}$ against output-side share $G_{\bos}$ of the most \bos{}-dominated down-projection of 28 instruction-tuned models, on 128 C4 documents. On the dashed curve there is no mismatch: the objective weights \bos{} as much as the loss depends on it. The \nSink{} models with a sink sit two to more than four orders of magnitude below it, the two gemma-2 models without one on or above it. Rings: the two collapses under this protocol.}
+\label{fig:ag}
+\end{figure}
+\begin{figure}[t]
+\begin{center}
+\fig{fig4_lesion}{\linewidth}
+\end{center}
+\caption{Anatomy of the lesion (Llama-3.1-8B-Instruct). (a) Relative
+hidden-state error against fp16 by layer and prompt position: it appears at the
+token that closes the chat header after layer 2 and spreads from layer 4.
+(b) Relative error of the block output after the sink-forming layer by token
+class. (c) The same error by quintile of the lesion row's own readout
+$\delta^{(r)\top}\vx_t$, with the share of template tokens in each quintile.
+(a, b) show the readout of \cref{cor:shape}(ii), (c) the row of \cref{cor:shape}(i).}
+\label{fig:lesion}
+\end{figure}
+\input{tables/tab_levers.tex}
 \input{tables/tab_collapse.tex}
+\input{tables/tab_ablation_full.tex}
 \input{tables/tab_protocols.tex}
 \input{tables/tab_protocol_results.tex}
 \input{tables/tab_methods.tex}
@@ -9,9 +31,17 @@
 \input{tables/tab_downstream.tex}
 \input{tables/tab_multiif.tex}
 \input{tables/tab_census.tex}
-\todo{D.1 Full census: every model with fp16, RTN3, GPTQ3 and corrected-objective IFEval under the short-document protocol, and GPTQ3 under c4win.}
-\todo{D.2 Blind-spot measurements per model: $A_{\bos}$, $G_{\bos}$, $A\!\cdot\!G_{\bos}$, sink layer, and the value of $\kappa=\vx_0^\top\mM^{-1}\vx_0$ of \cref{thm:rankone}.}
-\todo{D.3 4-bit census: GPTQ4, RTN4 and corrected GPTQ4 per model.}
-\todo{D.4 Per-position error profiles (the data behind \cref{sec:lesion}) for Llama and Qwen, and the same profiles for the repaired checkpoints.}
-\todo{D.5 Other quantisers under the window protocols; AutoRound anatomy (single-block error at Qwen layer 6).}
-\todo{D.6 Seed replicates for the headline arms.}
+\input{tables/tab_sets.tex}
+\input{tables/tab_census_full.tex}
+\input{tables/tab_seeds.tex}
+\paragraph{The sensitive positions (\cref{sec:mechanism:mismatch}).}
+A synthetic error along the sink direction written into the RTN-quantized Llama at the template positions costs \LrtnIF{}$\to$\InjTplEight{} at eight times the template norm, while the same error at six ordinary positions costs nothing (\InjOrdEight{}).
+Restoring the collapsed model's hidden states after the lesion layer at the chat scaffold alone, the \nScafL{} (Llama) or \nScafQ{} (Qwen) prompt tokens outside the user's text, repairs both collapses, \LgptqIF{}$\to$\PatchScaf{} and \QgptqIF{}$\to$\QPatchScaf{}, while restoring as many user-text positions changes nothing (\PatchContent{}, \QPatchContent{}); the template positions alone give \PatchTpl{} on Llama and \QPatchTpl{} on Qwen, \bos{} alone \PatchBos{}, the whole prompt \PatchAll{}.
+\paragraph{Verification of \cref{cor:shape} (\cref{sec:mechanism:signatures}).}
+At Llama's sink-forming down-projection the quantized matrix's error on template positions is \LtplErrGPTQ{} for GPTQ against \LtplErrRTN{} for RTN and 0.4 times RTN's at \bos{}, largest on template and newline tokens and smallest on the response (\cref{fig:lesion}a,b); \LrowShare{} of it sits in the super-weight row \citep{yu2024superweight}, whose own readout tracks the block's error (\cref{fig:lesion}c), and the largest compensated entry is \LmaxQ{} where the original matrix has \LmaxW{}: weights were pushed past their group range and clipped.
+Llama's second sink matrix, the layer-0 down-projection of \cref{sec:lesion}, is a weaker copy: range overshoot \OvershootZero{} against \OvershootOne{} at layer 1, one row with \ToprowZero{} of its error energy against \ToprowOne{}.
+The sending pattern of the loop itself, the row of the Cholesky factor of $\hess_\lambda^{-1}$ in act-order along which the rounded sink column compensates the later ones, has cosine \PatCosBos{} with $\vx_0$ in \nPatHit{} of \nPatAll{} sink matrices (\PatCosV{} with $\vv$) against \PatCosOrd{} on ordinary columns and \PatCosRand{} for a random direction; removing the \bos{} token from $\hess$ lowers the cosine with $\vx_0$ in twelve of the seventeen (to \PatCosNob{}; Llama 0.83 to 0.43) but not in the Qwen2.5 family, whose ordinary columns already compensate along $\vx_0$, and removes the amplitude in step with $\kappa$: the pattern shrinks by about 1 where $\kappa\le6\times10^{3}$ (granite, Qwen2.5-3B, Falcon3), by 4 to 7 times in the Llama family ($\kappa\approx10^{5}$) and by 150 to 500 times in the Qwen2.5 family ($\kappa\ge2.6\times10^{5}$), the overshoot falling from \OvershootWith{} to \OvershootWithout{} times the largest original entry. The dominant token therefore sets the amplitude and only partly the direction.
+Of the readouts in (ii), the isotropic overlap $\vx_0^\top\vx_t$ holds at the extremes, the top quintile of a prompt's tokens carrying \LoverlapRatio{} times the error of the bottom one (Qwen \QoverlapRatio{}), but does not place the template tokens (recall \LIsoRecall{} on Llama, \IsoRecall{} on Qwen); the row readout $\delta^{(r)\top}\vx_t$ of the lesion row does (recall \LRowRecall{} on Llama and \RowRecall{} on Qwen, against \LWhiteRecall{} and \WhiteRecall{} for the whitened overlap $\vx_0^\top\mM^{-1}\vx_t$; \cref{app:negative}).
+In the activations the error is one direction, cosine \LcosU{} with the \bos{} hidden state at the lesion position, largest on template and newline tokens (\LtplTokErr{} against \LordTokErr{}) and smallest on the response (\LrespTokErr{}).
+\paragraph{What the released run index adds.}
+Every number above and in the main text is one row of the run index released with the code, which also holds the arms that the text cites but the tables do not tabulate: the per-model Theorem 1 statistics of \cref{sec:mechanism:signatures} ($\kappa$, $\kappa_{\mathrm{iso}}=\|\vx_0\|^2/\lambda$, the rank-one share of the \bos{} block, the sending pattern's cosine with $\vx_0$ and $\vv$ on \bos{} and on ordinary columns, with and without the \bos{} token, and at two control matrices per model; $\kappa$ across protocols for the three main models); the readout quintiles of \cref{cor:shape}(ii) for the isotropic overlap, the whitened overlap and the row readout, with the template share and recall of each quintile; the position-matched injection and the activation-patching arms of \cref{sec:mechanism:mismatch} (\PatchTpl{}, \PatchOrd{}, \PatchBos{}, \PatchAll{}, \PatchScaf{}, \PatchContent{} on Llama; \QPatchTpl{}, \QPatchOrd{}, \QPatchScaf{}, \QPatchContent{} on Qwen); the position-weight arms of \cref{sec:corrected} (\PosWtenIF{}, \PosWhundredIF{}, \CorrPosDropIF{}; Mistral \MposTenIF{}, \MposHundredIF{}, \McorrPosDropIF{}); the per-position error profiles behind \cref{sec:lesion}; the other quantizers under the window protocols and the single-block anatomy of AutoRound's failure; and every transplant of \cref{sec:lesion}.

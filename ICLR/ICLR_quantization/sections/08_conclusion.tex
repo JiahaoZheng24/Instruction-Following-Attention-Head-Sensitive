@@ -1,13 +1,12 @@
 \section{Conclusion}
 \label{sec:conclusion}
 The layer-wise reconstruction objective is not a neutral proxy for the loss.
-In models with an attention sink it is owned, at one layer, by a token whose output the loss ignores, and the compensation step converts that blind spot into a one-directional error on the tokens the loss depends on.
-The error is a matrix that can be excised and transplanted; its direction and its victims follow from \cref{thm:rankone}; the remedies practitioners found by trial are instances of \cref{cor:shape}(iii); and restoring the output side, by weighting each calibration token with its output-side sensitivity over its input energy, repairs every collapse we found.
-In practice, a quantised instruction-tuned model should be validated on free generation, and if an early down-projection is sink-dominated, which one forward pass reveals, it should be calibrated with \cref{eq:corrected} or with chat-formatted text and compared against RTN, at 4 bits as well as at 3.
+In models with an attention sink it is owned, at one layer, by a token whose output the loss ignores, and the compensation step converts that blind spot into an error written along the sink pattern onto the format tokens the loss depends on.
+The error is a matrix that can be excised and transplanted, its rows and amplitude follow from \cref{thm:rankone}, the remedies found by trial are the levers of \cref{cor:shape}(iii), and restoring the output side on the token axis (\cref{prop:tokenlevel}) repairs every collapse we found.
+In practice a quantized instruction-tuned model should be validated on free generation and, if an early down-projection is sink-dominated, calibrated with \cref{eq:corrected} or chat-formatted text.
 
 \paragraph{Limitations and open questions.}
-Natural collapses are rare, and the condition that makes a lesion fatal is demonstrated by transplants, not derived: the lesion is benign in a full-precision or RTN network and fatal inside a GPTQ solution, its own or a foreign one, so fatality belongs to the joint solution of the lesion and the layers quantised after it, and deriving when those layers amplify the error rather than absorb it is the open problem this paper leaves.
-What we can exclude is a fragility of the full-precision network, which tolerates a synthetic perturbation along $\sinkdir$ at four times the lesion's amplitude, and an accumulation over the response, whose tokens are barely affected.
-The corrected objective lowers Llama's MMLU by a point relative to the collapsed checkpoint and recovers GSM8K only partly, and on a model without a sink it costs several points.
-Quantisation is simulated; the quantisers covered are those with an input-side curvature or a token-averaged block loss, not lattice methods; the census stops at 32B.
-About thirty pre-registered predictions failed (\cref{app:negative}), among them that collapse could be predicted from the lesion's size, induced by injecting its direction, or confined to a few layers; the account that remains is the one that survived them.
+The theory is local to one matrix and exact for the steps that write the lesion; the effect of the columns rounded afterwards is measured, not derived, and it predicts the lesion, not why one quantized network absorbs it and another does not.
+Why that absorption succeeds for one calibration draw and fails for another is not derived, there is no cross-model criterion, and Mistral's window collapse is localized to two layers but not to a matrix.
+The corrected objective lowers Llama's MMLU by a point, recovers GSM8K only partly and costs several points on a model without a sink; quantization is simulated and the census stops at 32B.
+Thirty-one pre-registered predictions failed (\cref{app:negative}), among them a $\kappa$ criterion and the collapse of GPTQModel's own default loop, whose group-aware column order the theory does not cover.

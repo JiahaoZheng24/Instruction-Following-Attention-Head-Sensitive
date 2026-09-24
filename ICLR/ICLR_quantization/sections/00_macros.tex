@@ -14,5 +14,5 @@
 \providecommand{\vw}{\boldsymbol{w}}
 \newcommand{\downproj}{\texttt{down\_proj}}
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
-% \fig{name}{width}: includes figures/name.pdf if it exists, otherwise a labelled placeholder box
+% \fig{name}{width}: includes figures/name.pdf if it exists, otherwise a labeled placeholder box
 \newcommand{\fig}[2]{\IfFileExists{figures/#1.pdf}{\includegraphics[width=#2]{#1}}{\fbox{\parbox[c][4cm][c]{#2}{\centering\textcolor{red}{TODO figure \texttt{\detokenize{#1}}}}}}}

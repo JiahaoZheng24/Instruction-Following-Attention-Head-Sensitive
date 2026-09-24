@@ -19,12 +19,16 @@ runs/stats\f-f3-3b,196,L1.down_proj,5.0,L1,251,L2.down_proj,1.4,1
 runs/stats\f-g29-3b,294,L5.down_proj,1.9,L0,2,L9.down_proj,1.2,1
 runs/stats\f-granite-3b,280,L5.down_proj,8.7,L5,817,L28.down_proj,1.3,1
 runs/stats\f-hermes3-3b,224,L1.down_proj,48.6,L1,316,L24.down_proj,1.2,1
+runs/stats\f-l-3b-cs1,224,L1.down_proj,163.0,L1,510,L24.down_proj,1.3,1
+runs/stats\f-l-3b-gar,224,L1.down_proj,43.1,L1,507,L24.down_proj,1.2,1
+runs/stats\f-l-3b-noao,224,L1.down_proj,1700.1,L1,465,L5.v_proj,1.4,1
 runs/stats\f-l-3b,224,L1.down_proj,105.0,L1,494,L10.k_proj,1.5,1
 runs/stats\f-l3-3b,224,L1.down_proj,117.4,L1,482,L0.k_proj,1.2,1
 runs/stats\f-l32-3b,196,L1.down_proj,3.6,L1,496,L21.down_proj,1.2,1
 runs/stats\f-m7-3b,224,L1.down_proj,37.8,L1,935,L22.down_proj,1.2,1
 runs/stats\f-ministral-3b,252,L2.down_proj,6.9,L2,85,L25.down_proj,1.0,1
 runs/stats\f-nemo-3b,280,L0.down_proj,60.1,L2,63,L29.down_proj,1.2,1
+runs/stats\f-q14-3b-gar,336,L4.down_proj,31.5,L5,38,L4.down_proj,17.6,1
 runs/stats\f-q14-3b,336,L4.down_proj,471.2,L4,10,L4.down_proj,259.6,1
 runs/stats\f-q3-3b,252,L2.down_proj,16.3,L2,609,L1.down_proj,5.5,1
 runs/stats\f-q32-3b,448,L5.down_proj,62.1,L5,392,L2.down_proj,3.7,1

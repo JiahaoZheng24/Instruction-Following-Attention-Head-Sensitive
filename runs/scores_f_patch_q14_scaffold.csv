@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_patch_q14_scaffold,0.7043,0.7722,0.7394,0.8058,0.7554

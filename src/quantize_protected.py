@@ -257,6 +257,9 @@ def main():
     ap.add_argument("--protect",
                     choices=["none", "heads", "tacq", "randw", "coords", "cols", "hmag", "modules", "spqr"],
                     required=True)
+    ap.add_argument("--order", choices=["act", "none", "gar"], default=None,
+                    help="column order: act (act-order, default), none (natural), gar (GPTQModel's group-aware "
+                         "reordering, W92); overrides --no-actorder")
     ap.add_argument("--no-actorder", action="store_true",
                     help="GPTQ without desc_act ordering (compensation-order probe)")
     ap.add_argument("--rtn-modules",
@@ -283,6 +286,8 @@ def main():
                     help="W60: clamp w_t below at this fraction of the mean (0 = none)")
     ap.add_argument("--hess-grad-cap", type=float, default=0.0,
                     help="W61: clamp w_t above at this multiple of the median token weight (0 = none)")
+    ap.add_argument("--hess-pos-weight", default="",
+                    help="W77: 'K:c' multiply the first K positions of every calibration sample by c inside H")
     ap.add_argument("--hess-drop-pos", type=int, default=0,
                     help="W42: exclude the first K positions of each calibration sample from H")
     ap.add_argument("--rtn-invert", action="store_true",
@@ -305,7 +310,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--calib-seed", type=int, default=0,
                     help="disjoint calib replicate (for error bars)")
-    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext", "ultrachat", "c4chat", "c4wrongchat", "c4win", "pile"], default="c4",
+    ap.add_argument("--calib", choices=["c4", "instruct", "wikitext", "ultrachat", "c4chat", "c4wrongchat", "c4win", "pile", "pileshort"], default="c4",
                     help="calibration corpus (frozen protocol = c4)")
     # quantizer family
     ap.add_argument("--quantizer", choices=["gptq", "rtn", "awq"], default="gptq")
@@ -496,6 +501,9 @@ def main():
                 g.drop_pos = args.hess_drop_pos
                 g.token_cap = args.hess_token_cap
                 g.bos_scale = args.hess_bos_scale
+                if args.hess_pos_weight:
+                    k_, c_ = args.hess_pos_weight.split(":")
+                    g.pos_weight = (int(k_), float(c_))
             handles = [m.register_forward_pre_hook(
                 (lambda g: lambda _m, a: g.add_batch(a[0]))(gptq[p]))
                 for p, m in mods.items()]
@@ -534,7 +542,7 @@ def main():
                                    grid=args.awq_grid, mask=mask, stats=st)
                 else:
                     g.quantize(bits=args.bits, group_size=args.group_size, sym=sym,
-                               actorder=not args.no_actorder, percdamp=args.percdamp,
+                               actorder=_order_flag(args), percdamp=args.percdamp,
                                mask=mask, scale_excl_mask=args.scale_excl_mask,
                                stats=st, stats_eig=args.stats_eig)
                 if st is not None:
@@ -560,6 +568,9 @@ def main():
     wmax = max(float(p.abs().max()) for n, p in model.named_parameters()
                if "layers" in n and p.dim() == 2)
     print(f"[v2] finite check: non-finite linear weights = {nonfinite}; max |W| = {wmax:.4g}")
+    if torch.cuda.is_available():
+        print(f"[v2] peak GPU memory {torch.cuda.max_memory_allocated() / 2**30:.1f} GiB "
+              f"(reserved {torch.cuda.max_memory_reserved() / 2**30:.1f} GiB)", flush=True)
     if args.stats_dir:
         path = os.path.join(args.stats_dir, "stats.csv")
         with open(path, "w", newline="") as f:
@@ -581,10 +592,17 @@ def rtn_quantize_(W: torch.Tensor, bits: int, group_size: int, mask,
     W.copy_(Q.to(W.dtype))
 
 
+def _order_flag(args):
+    """True = act-order, False = natural order, 'gar' = group-aware reordering (gptq_core.gar_perm)."""
+    order = args.order or ('none' if args.no_actorder else 'act')
+    return {'act': True, 'none': False, 'gar': 'gar'}[order]
+
+
 def protocol(args, ctx):
     return {"model": args.model, "bits": args.bits,
             "group_size": args.group_size, "sym": not args.asym,
-            "desc_act": args.quantizer == "gptq" and not args.no_actorder,
+            "desc_act": args.quantizer == "gptq" and _order_flag(args) is True,
+            "column_order": (args.order or ("none" if args.no_actorder else "act")) if args.quantizer == "gptq" else None,
             "quantizer": args.quantizer,
             "percdamp": args.percdamp if args.quantizer == "gptq" else None,
             "awq_grid": args.awq_grid if args.quantizer == "awq" else None,
@@ -596,7 +614,7 @@ def protocol(args, ctx):
             "topk_from": args.topk_from, "k": args.k, "modules": args.modules,
             "rtn_modules": ctx.get("rtn_modules"), "rtn_from_stats": args.rtn_from_stats,
             "rtn_threshold": args.rtn_threshold, "rtn_topk": args.rtn_topk, "rtn_invert": args.rtn_invert,
-            "hess_token_norm": args.hess_token_norm, "hess_drop_pos": args.hess_drop_pos, "hess_token_cap": args.hess_token_cap, "hess_bos_scale": args.hess_bos_scale,
+            "hess_token_norm": args.hess_token_norm, "hess_drop_pos": args.hess_drop_pos, "hess_token_cap": args.hess_token_cap, "hess_bos_scale": args.hess_bos_scale, "hess_pos_weight": args.hess_pos_weight or None,
             "hess_grad_weight": args.hess_grad_weight, "hess_grad_power": args.hess_grad_power, "hess_grad_floor": args.hess_grad_floor, "hess_grad_cap": args.hess_grad_cap,
             "kv": args.kv, "projs": args.projs, "seed": args.seed,
             "calib_seed": args.calib_seed, "coords_file": args.coords_file,

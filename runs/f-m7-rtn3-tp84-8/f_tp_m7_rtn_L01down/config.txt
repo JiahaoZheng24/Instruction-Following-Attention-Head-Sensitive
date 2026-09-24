@@ -1,0 +1,3 @@
+target=/store01/yshi4/jzheng7/models/f-m7-rtn3-tp84-8
+donor=/store01/yshi4/jzheng7/models/f-m7-donor84-8
+layers=0-1:down_proj proj=0-1:down_proj

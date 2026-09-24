@@ -1,13 +1,10 @@
 \begin{abstract}
-Quantised instruction-tuned language models are usually validated with perplexity and multiple-choice accuracy.
-We show that these metrics can miss a complete loss of instruction following.
-At 3 bits, GPTQ under the calibration protocol that a major library uses by default lowers IFEval from 0.77 to 0.15 on Llama-3.1-8B-Instruct and from 0.82 to 0.43 on Qwen2.5-14B-Instruct, below round-to-nearest (0.57 and 0.70), while MMLU stays in the ordinary 3-bit range.
-The failure is rare (2 of 18 models) and depends on how calibration text is sampled.
-We trace it to one weight matrix: the MLP down-projection of the early layer in which the attention sink forms.
-Its calibration Hessian is effectively rank-one, dominated by the beginning-of-sequence token, whereas the loss is insensitive to that token's output and sensitive to the prompt-template tokens that attend to it.
-The layer-wise objective, which uses only the input side, therefore optimises for the one token that does not matter.
-Under a dominant token the GPTQ update has an exact closed form that predicts the matrix, row and direction of the damage and separates it from ordinary rounding noise.
-The damaged matrix is harmless inside the full-precision model; collapse requires the rest of a GPTQ-quantised network.
-Weighting each calibration token by its output-side sensitivity divided by its input energy restores the missing curvature: it eliminates all observed 3-bit collapses and, on 16 models, never falls more than 4.6 points below round-to-nearest, at an average gain of 0.3 points on non-collapsing models.
-The curvature mismatch is present in all 26 models with an attention sink and absent in the two without.
+Quantized instruction-tuned language models are usually validated with perplexity and multiple-choice accuracy; these metrics can miss a collapse of instruction following.
+At 3 bits, reference GPTQ with act-order under the short-document calibration sampling that widely used libraries apply by default lowers the IFEval score of Llama-3.1-8B-Instruct from \LfpIF{} to \LgptqIF{} and that of Qwen2.5-14B-Instruct from \QfpIF{} to \QgptqIF{}, below round-to-nearest at \LrtnIF{} and \QrtnIF{}, while MMLU stays in the ordinary 3-bit range.
+The failure is rare, two of eighteen models, and depends on how the calibration text is cut and, for Llama, on which documents are drawn.
+We trace it to the MLP down-projection of the layer that forms the attention sink: its calibration Hessian is effectively rank-one and owned by the beginning-of-sequence token, whereas the measured loss sensitivity is near zero at that token and concentrated on the prompt-template tokens, so the layer-wise objective, which sees only the input side, optimizes for the one token that does not matter.
+Under a dominant token each compensation step of GPTQ has an exact closed form, which predicts the matrix, rows and amplitude of the damage.
+Excision and transplantation show that the damaged matrix is necessary but not sufficient: on Qwen it alone collapses a round-to-nearest network, on Llama it needs a second, weaker copy of itself one layer earlier, which only the short-document protocol creates, and a quantized network survives it only when the matrices quantized after it absorb it.
+Weighting each calibration token by its measured output-side sensitivity divided by its input energy removes every 3-bit collapse we found and, across eighteen models, never falls more than 4.6 points below round-to-nearest.
+This mismatch is present in all twenty-six models with an attention sink and absent in the two without.
 \end{abstract}

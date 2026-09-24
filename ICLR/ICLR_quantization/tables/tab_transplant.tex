@@ -1,16 +1,15 @@
 \begin{table}[t]
-\caption{Transplanting the lesion. The sink-forming down-projection of a donor checkpoint replaces the same matrix of a target network; everything else in the target is unchanged. IFEval of the result; the target's own score in parentheses.}
+\caption{Transplanting the lesion. The sink-forming down-projection of a donor checkpoint replaces the same matrix of a target network; everything else in the target is unchanged. IFEval of the result; the target's own score in parentheses. The last Llama row is a transplant into an already collapsed network: it tests whether the tolerated matrix cures, not whether it collapses.}
 \label{tab:transplant}
 \begin{center}
-\small
-\begin{tabular}{llc}
+\footnotesize\begin{tabular}{>{\raggedright\arraybackslash}p{5.0cm}>{\raggedright\arraybackslash}p{6.2cm}c}
 \toprule
 Target network (own score) & Donor of the sink-forming down-projection & IFEval \\
 \midrule
 Llama fp16 (\LfpIF{})                          & short-document GPTQ3 (the lesion) & \TPfp{} \\
 Llama RTN3 (\LrtnIF{})                         & short-document GPTQ3              & \TPrtn{} \\
 Llama GPTQ3, window calibration (\LcwinIF{})   & short-document GPTQ3              & \TPcwin{} \\
-Llama GPTQ3, short-document (\LgptqIF{})       & window-calibrated GPTQ3 (harmless in its own network) & \TPshort{} \\
+Llama GPTQ3, short-document (\LgptqIF{})       & window-calibrated GPTQ3 (tolerated by its own network; RTN in its place cures, \LoneMatrixIF{}) & \TPshort{} \\
 Qwen fp16 (\QfpIF{})                           & short-document GPTQ3 (layer \QlesionLayer{}) & \TPqfp{} \\
 \bottomrule
 \end{tabular}

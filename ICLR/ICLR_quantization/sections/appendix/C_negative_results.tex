@@ -2,25 +2,59 @@
 \label{app:negative}
 From the diagnosis onward, each batch of experiments was preceded by a written prediction.
 The table lists the predictions that were refuted, grouped by what they were meant to establish, and what each refutation removed from the account.
-\todo{Fill from RESULTS\_v3 \S8; one row per refuted prediction; columns: what was predicted, what was observed, what it ruled out.}
-\begin{table}[h]
-\caption{Refuted pre-registered predictions.}
-\label{tab:negative}
 \begin{center}
-\begin{tabular}{p{4.2cm}p{4.2cm}p{4.2cm}}
+\footnotesize\renewcommand{\arraystretch}{0.95}\setlength{\tabcolsep}{4pt}
+\begin{longtable}{>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{5.2cm}>{\raggedright\arraybackslash}p{3.6cm}}
+\caption{Refuted pre-registered predictions.}\label{tab:negative}\\
 \toprule
 Predicted & Observed & Ruled out \\
 \midrule
+\endfirsthead
+\multicolumn{3}{l}{\footnotesize\Cref{tab:negative}, continued}\\
+\toprule
+Predicted & Observed & Ruled out \\
+\midrule
+\endhead
+\midrule
+\multicolumn{3}{r}{\footnotesize continued on the next page}\\
+\endfoot
+\bottomrule
+\endlastfoot
+\addlinespace[3pt]\multicolumn{3}{l}{\emph{What predicts collapse}} \\\addlinespace[1pt]
 Collapse is predictable from the template-position error of the lesion (a threshold) & Ranking across 16 unseen models (Spearman $-0.50$), no threshold & A lesion-size criterion \\
-Injecting the lesion's direction $\sinkdir$ into a healthy model at the lesion's amplitude collapses it & No collapse up to four times the amplitude & Fragility of the full-precision network \\
+$\kappa$ orders the protocols by collapse (\cref{cor:shape}(iii)) & Qwen collapses at $\kappa=2.6\times10^{5}$ and at $87$, is healthy at $2.7\times10^{5}$ & $\kappa$ as a collapse criterion \\
+The share of the trace held by \bos{} at the second matrix orders collapse across models & Tulu-3 and Llama share the same value (\AbosZero{}) at \TuluIF{} and \LgptqIF{}; Qwen2.5-32B is healthy at \AbosQthirtytwo{} & The count of \bos{}-dominated matrices as a cross-model criterion \\
+The share of newline, special and document-initial tokens in the calibration draw predicts collapse & The draw that leaves Llama healthy has a lower share than one that collapses it; window protocols with ten times the share collapse or not & Calibration composition as a collapse predictor \\
+Collapse under the short-document protocol is deterministic given the model & A second draw of 128 documents leaves Llama at \LgptqSeedIF{} & Collapse as a property of the model alone \\
+4-bit is immune & Two models lose 6--10 points to RTN4 & Bit-width as a safe boundary \\
+GPTQModel's own default loop collapses Llama and Qwen as our loop does & Neither collapses (\LibLIF{} / \LibQIF{}); inside the library, act-order (\LibLdescIF{}) or the natural order (\LibLnogarIF{}) collapses Llama, its group-aware order does not, and the same holds in our loop (\GarLIF{} / \GarQIF{}; \cref{tab:library}) & The sampling shape as a sufficient condition; the column order sets the lesion's mass and breadth, and that is not derived \\
+\addlinespace[3pt]\multicolumn{3}{l}{\emph{Where the lesion is and what it needs}} \\\addlinespace[1pt]
+Injecting the lesion's direction into a healthy model at the lesion's amplitude collapses it & No collapse up to four times the amplitude & Fragility of the full-precision network \\
+Two sink matrices are needed wherever the collapse occurs & Qwen's sink-forming down-projection alone collapses the RTN network (\QlesionRtnIF{}); the second adds nothing (\QpairRtnIF{}) & A fixed size for the minimal collapsing set \\
+Mistral's window collapse is carried by the down-projections & One or two of them leave the RTN network unchanged (\MoneRtnIF{}, \MpairRtnIF{} against \MrtnIF{}) & One lesion site for every phenotype \\
+Mistral's window collapse sits in one layer or in the down-projections & Layer 1 alone (\MlayerOneIF{}) and the four early down-projections (\MfourDownIF{}) leave RTN unchanged; the fourteen matrices of layers 0--1 collapse it (\MfourteenIF{}) & A single-matrix carrier for that phenotype \\
+Substituting the window-calibrated version of a lesion disarms it & The collapse survives at layer 0 (\LcwinZeroSwapIF{}) as it does at layer 1, since a foreign matrix is itself fatal & Substitution as a test of what the lesion contributes \\
+\addlinespace[3pt]\multicolumn{3}{l}{\emph{The background and its absorption}} \\\addlinespace[1pt]
 The amplification sits in layers 2--4, where the error first grows & Whole-layer transplants of layers 2--4 change neither outcome (pre-correction loop) & A layer-local background \\
 The protocol dependence lives in the background, not the lesion: a foreign lesion is tolerated by the window-calibrated network & Under the corrected loop the foreign lesion collapses it (\TPcwin{}) & Separating lesion from background by transplantation between GPTQ checkpoints \\
+The background is the co-adaptation of the layers quantized after the lesion & Rounding every layer from the second onward to nearest keeps the collapse (\RtnTailRange{}); the lesion alone in an all-RTN network scores \TPrtn{} & The later layers as the background; it lies in the other matrices of the first two layers \\
+The other matrices of the first two layers amplify the lesion & Every set without the layer-0 down-projection is healthy, including all of layer 1 with the lesion (\LoneWholeIF{}); the other twelve absorb the pair in the healthy draw and fail to in the collapsing one (\cref{sec:lesion}) & Amplification by the neighbors; what varies between networks is absorption \\
+The healthy calibration draw writes a benign pair & Its two down-projections collapse the RTN network (\LseedOnePairIF{}); its fourteen matrices of layers 0--1 do not (\LseedOneFourteenIF{}) & The lesion as what varies between draws; it is the neighbors \\
+A healthy model of the same family carries a benign pair & Tulu-3's own pair collapses its RTN network (\TuluPairIF{} against \TuluRtnIF{}) while the full GPTQ network scores \TuluGptqIF{} & Sufficiency of the lesion as a model-level property \\
+The healthy calibration draw writes a smaller lesion & Same row readout on the template tokens (\SeedOneRowTpl{} against \SeedOneRowOrd{} on ordinary tokens; \SeedZeroRowTpl{}/\SeedZeroRowOrd{} for the collapsing draw) & Lesion size as what varies between draws \\
+\addlinespace[3pt]\multicolumn{3}{l}{\emph{The readout and the direction}} \\\addlinespace[1pt]
 The lesion accumulates along the response & Response tokens barely affected & Damage during generation \\
-Capping the output weights keeps the repair & Every capped arm loses the repair & A robust-statistics reading of $\gsens$ \\
+Template tokens are the high-overlap tail of the isotropic readout $|\vx_0^\top\vx_t|$ & The tail carries \LoverlapRatio{} times the error of the bottom quintile, but template tokens are \LoverlapTplTop{} of it (Llama) & The isotropic form of \cref{cor:shape}(ii) as the placement of the template tokens \\
+The whitened overlap $\vx_0^\top\mM^{-1}\vx_t$ places the damaged tokens & Worst of the three readouts on Qwen (recall \WhiteRecall{} against \RowRecall{} for the row readout) & The general form of \cref{cor:shape}(ii) as the readout \\
+Restoring Llama's special-token positions alone repairs the collapse & \PatchTpl{}; the whole scaffold, which on Llama is mostly its system block, \PatchScaf{} & The special tokens, rather than the format as a class, as the carriers \\
+Removing the \bos{} token from $\hess$ changes the direction of the compensation on the sink column & Direction only partly changed (cosine \PatCosNob{} against \PatCosBos{} with \bos{}); the amplitude falls by \PatNormRatioRange{}, in step with $\kappa$ & The dominant token as the sole source of the direction; it sets the amplitude \\
+The block-diagonal restriction of \cref{eq:twosides} holds on Llama & Full curvature \CrossRatioL{} of the block-diagonal one, and negative; \CrossRatioQ{} on Qwen & The two-sided expansion as a model of the lesion's cost \\
+\addlinespace[3pt]\multicolumn{3}{l}{\emph{The repair}} \\\addlinespace[1pt]
+Capping the output weights rescues output weighting alone on Llama & The capped arm falls further (\LgonlyIF{} to \LcapIF{}) & Dynamic range as the reason output weighting alone fails \\
 Output weighting alone repairs all three collapses & Not Llama & Sufficiency of $\gsens$ \\
-4-bit is immune & Two models lose 6--10 points to RTN4 & Bit-width as a safe boundary \\
-\todo{remaining rows} & & \\
-\bottomrule
-\end{tabular}
+The extreme weights of $\gsens$ are the working part of the repair & Capping at $100\times$ the median changes nothing (\LcorrCapIF{}); the earlier \LcapIF{} was output weighting alone & Dynamic range of $\gsens$ as the mechanism of the repair \\
+The repair needs the weight on the first positions of each sample & Removing it leaves \CorrPosDropIF{} on Llama & Document-initial positions as the carriers of $\gsens$ on Llama \\
+The corrected objective needs the weight on the first positions on Mistral & Removing it costs two points (\McorrPosDropIF{}); adding a constant weight to them repairs normalization alone (\MposTenIF{}) & The gradient as the only route to the output side \\
+Chat-formatted calibration recovers at most half of the 4-bit loss & Full recovery on Mistral and Hermes-3, a further loss on Qwen3-14B & Superiority of the corrected objective where both apply \\
+\end{longtable}
 \end{center}
-\end{table}

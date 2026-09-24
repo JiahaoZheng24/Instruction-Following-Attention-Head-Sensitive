@@ -1,24 +1,19 @@
 \section{The repair: restoring the output side}
 \label{sec:corrected}
-\cref{prop:tokenlevel} gives the repair: quantise with
+Each remedy found by trial moves one quantity of \cref{thm:rankone} and fails where that quantity is not the binding one (\cref{tab:levers}).
+\cref{prop:tokenlevel} gives a repair that acts on the objective instead: quantize with
 \begin{equation}
 \label{eq:corrected}
 \hessw=\sum_t \wtok\,\vx_t\vx_t^\top,\qquad \wtok=\frac{\gsens}{\|\vx_t\|^2},
 \end{equation}
-weights normalised to unit mean, everything else unchanged.
-It costs one backward pass per calibration sample and one line in the Hessian accumulation, and applies to any quantiser that consumes $\hess$.
-Both factors are needed: dividing by $\|\vx_t\|^2$ alone removes the dominant token but still treats the \bos{} output as mattering; multiplying by $\gsens$ alone leaves $\|\vx_{\bos}\|^2$, five orders of magnitude above typical, in control unless $g_{\bos}$ is exactly zero, which it is not.
+weights normalized to unit mean, everything else unchanged; $\gsens$ is measured once on the full-precision model with one backward pass per calibration sample, and the reweighting is one line in the Hessian accumulation of any quantizer that consumes $\hess$ (\cref{app:corrected}).
+Chat-formatted calibration, the practitioners' lever of \cref{cor:shape}(iii), removes every 3-bit collapse as well (Mistral under C4 windows \McchatIF{} / \MuchatIF{} against \McorrIF{}); at 4 bits it recovers Mistral and Hermes-3 but lowers Qwen3-14B from \QthreeFourGptqIF{} to \QthreeFourChatIF{}, ten points under RTN, where the corrected objective gives \QthreeFourCorrIF{}.
 
 \paragraph{Ablation.}
-\cref{tab:ablation} confirms that the two halves fail in complementary places.
-The corrected objective restores Llama to \LcorrIF{} and Qwen to \QcorrIF{} under short documents, to \LpileCorrIF{} and \QpileCorrIF{} under Pile windows, and brings Mistral under c4win from \MgptqIF{} to the RTN level (\McorrIF{}).
-Token normalisation alone repairs Llama and Qwen but not Mistral (\MtnormIF{}); output weighting alone repairs Mistral (\MgonlyIF{}) but neither Llama (\LgonlyIF{}) nor Qwen (\QgonlyIF{}); capping $\gsens$ at one hundred times its median destroys the repair on Llama (\LcapIF{}), so the extreme weights are the working part.
-On Mistral-Nemo, which does not collapse, the corrected objective is within noise of GPTQ.
-\input{tables/tab_ablation.tex}
+\cref{prop:tokenlevel}(b) predicts that neither factor alone repairs everything, and \cref{tab:ablation_full} (\cref{app:extra}) shows the two halves failing in complementary places: the corrected objective restores Llama to \LcorrIF{}, Qwen to \QcorrIF{} and Mistral to the RTN level (\McorrIF{}), token normalization alone repairs Llama and Qwen but not Mistral (\MtnormIF{}), and output weighting alone, which is the gradient-driven token weight of VLMQ \citep{xue2025vlmq} up to the norm and the loss it differentiates, repairs Mistral (\MgonlyIF{}) but neither Llama (\LgonlyIF{}) nor Qwen (\QgonlyIF{}), as the surviving dominant token predicts.
+Capping $\gsens$ at one hundred times its median changes nothing (\LcorrCapIF{}, \QcorrCapIF{}, \McorrCapIF{}), so the repair does not rest on the largest weights; and a constant weight on the first eight positions of every document, with no gradient, restores normalization alone to the RTN level on Mistral (\MposTenIF{}), so the output side can be replaced by a position prior on every collapse we have; which half suffices on which model is not derived.
 
 \paragraph{Cost.}
-On instruction following the corrected objective matches the two zero-bit alternatives, re-rounding the sink-forming matrices and heavy damping, on Llama and is a few points behind on Qwen, and it holds across the turns of Multi-IF (Llama \LcorrMIF{} against RTN \LrtnMIF{}).
-It is not free (\cref{tab:downstream}): Llama's GSM8K recovers only to \LcorrGSM{} against \LzeroBitGSM{} for re-rounding, and its MMLU falls to \LcorrMMLU{}, below the collapsed checkpoint's \LgptqMMLU{}; Qwen loses under a point.
-This matches the theory: the correction removes the one error the blind spot creates and does not recover the ordinary 3-bit loss, and on Llama it trades some likelihood-measured accuracy for the template positions it now protects.
-We present it as a repair to apply when \cref{prop:mismatch} holds, not as a new default.
-At 4 bits neither model collapses; across \nFour{} models 4-bit GPTQ does not beat 4-bit RTN on IFEval (mean \FourMeanDelta{}, negative on \FourNegFrac{}) and loses on Mistral-7B-v0.3 (\FourMistral{}), Qwen3-14B (\FourQwenThree{}) and Hermes-3 (\FourHermes{}); the corrected objective recovers Mistral (\CorrFourMistral{}) and Hermes-3 (\CorrFourHermes{}), moves Qwen3-14B within noise (\CorrFourQwenThree{}), and costs nothing on Llama.
+On instruction following the corrected objective matches the zero-bit alternatives, re-rounding and heavy damping, on Llama, is a few points behind on Qwen, and holds across the turns of Multi-IF (\cref{tab:multiif}).
+It is not free (\cref{tab:downstream}): Llama's GSM8K recovers only to \LcorrGSM{} against \LzeroBitGSM{} for re-rounding and its MMLU falls to \LcorrMMLU{}, below the collapsed checkpoint's \LgptqMMLU{}; Qwen loses under a point; it removes the error the blind spot creates, not the ordinary 3-bit loss, so it is a repair for when \cref{prop:mismatch} holds, not a new default.
+At 4 bits neither model collapses, but across \nFour{} models 4-bit GPTQ does not beat 4-bit RTN on IFEval (mean \FourMeanDelta{}, negative on \FourNegFrac{}; per model in \cref{tab:census_full}), and the corrected objective recovers the losses on Mistral (\CorrFourMistral{}) and Hermes-3 (\CorrFourHermes{}) and moves Qwen3-14B within noise (\CorrFourQwenThree{}).

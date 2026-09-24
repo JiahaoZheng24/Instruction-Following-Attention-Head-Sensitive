@@ -126,6 +126,33 @@ def _shares(vals, classes):
     return out
 
 
+def dump_tokens(model, tok, args):
+    """W86: per-token input energy and output sensitivity along one chat text, for Figure 1(b)."""
+    text = args.tokens_text.replace("\\n", "\n")
+    ids = tok(text, return_tensors="pt", truncation=True, max_length=args.seqlen)["input_ids"][0].tolist()
+    xin, gout = collect_token_sides(model, tok, [text], args.seqlen, verbose=False)
+    n_layers = len(model.model.layers)
+    if args.tokens_layer < 0:
+        li = max(range(n_layers), key=lambda L: float(xin[(L, "down_proj")][0][0]) /
+                 max(float(xin[(L, "down_proj")][0].sum()), 1e-30))
+    else:
+        li = args.tokens_layer
+    x, g = xin[(li, "down_proj")][0], gout[(li, "down_proj")][0]
+    assert x.numel() == len(ids) == g.numel(), (x.numel(), len(ids), g.numel())
+    xs, gs = float(x.sum()), float(g.sum())
+    os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
+    with open(args.out, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["pos", "token_id", "token", "text", "xnorm2", "g", "x_share", "g_share"])
+        for t, (i, xv, gv) in enumerate(zip(ids, x.tolist(), g.tolist())):
+            w.writerow([t, i, tok.convert_ids_to_tokens(i), tok.decode([i]), f"{xv:.6g}", f"{gv:.6g}",
+                        f"{xv / xs:.6g}", f"{gv / gs:.6g}"])
+    print(f"[tokens] {args.model} layer {li} down_proj, {len(ids)} tokens -> {args.out}")
+    print(f"[tokens] BOS share: input {x[0] / xs:.4f}, output {g[0] / gs:.5f}")
+    for t, (i, xv, gv) in enumerate(zip(ids, x.tolist(), g.tolist())):
+        print(f"   {t:3d} {tok.convert_ids_to_tokens(i)!r:24s} x2={xv:10.3g} ({xv / xs:6.1%})  g={gv:10.3g} ({gv / gs:6.1%})")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", default=DEFAULT_MODEL)
@@ -135,9 +162,16 @@ def main():
     ap.add_argument("--seqlen", type=int, default=2048)
     ap.add_argument("--calib-seed", type=int, default=0)
     ap.add_argument("--out", required=True, help="CSV, one row per module")
+    ap.add_argument("--tokens-text", help="W86 (Figure 1b): ONE chat text without BOS (the tokenizer adds it); "
+                    "dump per-token ||x_t||^2 and g_t at one down_proj to --out and stop")
+    ap.add_argument("--tokens-layer", type=int, default=-1,
+                    help="layer of the down_proj to dump; -1 = the most BOS-dominated down_proj on this text")
     args = ap.parse_args()
 
     model, tok = load_model(args.model)
+    if args.tokens_text:
+        dump_tokens(model, tok, args)
+        return
     texts = load_calib(args.calib, tok, args.n_calib, args.seqlen, seed=args.calib_seed)
     print(f"[sides] {args.model} {args.calib} x{len(texts)}")
     xin, gout = collect_token_sides(model, tok, texts, args.seqlen)

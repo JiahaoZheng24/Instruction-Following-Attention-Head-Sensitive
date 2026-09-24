@@ -6,7 +6,7 @@
   `00_macros.tex` holds notation, `00_numbers.tex` holds every number quoted in the paper (one macro per value, with its run tag)
 - `sections/appendix/`  A proofs (collaborator), B protocols and the loop correction, C failed pre-registrations, D extra tables
 - `tables/`             one `table` environment per file; only `tab_ablation` is in the main text, the rest are `\input` from Appendix D
-- `figures/`            `fig1_schematic.tex` (TikZ, the mechanism chain, Figure 1a); PDF artwork expected: `fig1_teaser.pdf`, `fig2_lesion.pdf`, `fig3_ag.pdf` (placeholders render until they exist)
+- `figures/`            exported PDFs only (`fig1_mechanism`, `fig2_bars`, `fig3_ag`, `fig4_lesion`); sources, generators and previews live in `../figure/` (see `../figure/code/README.md`)
 - `template_original_iclr2027.tex`  the untouched ICLR shell, kept for reference
 - style files (`*.sty`, `*.bst`, `math_commands.tex`) untouched
 

@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_tp_l_rtn_L1attn_les,0.4861,0.6031,0.5305,0.6463,0.5665

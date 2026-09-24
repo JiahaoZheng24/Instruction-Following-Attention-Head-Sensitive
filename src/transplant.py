@@ -44,22 +44,36 @@ def main():
     ap.add_argument("--layers", help="W69: layer or range, e.g. '2' or '2-3'")
     ap.add_argument("--proj", default="down_proj",
                     help="'down_proj' (default), 'all' (7 matrices), 'attn' (q,k,v,o), 'mlp' (gate,up,down) or a comma list")
+    ap.add_argument("--spec", help="W83: heterogeneous set 'LAYERS:PROJS;LAYERS:PROJS', e.g. '0:all;1:down_proj' "
+                    "(PROJS = all | attn | mlp | comma list); overrides --layer/--layers/--proj")
     ap.add_argument("--prompts", required=True)
     ap.add_argument("--tag", required=True)
     ap.add_argument("--batch", type=int, default=16)
     args = ap.parse_args()
 
-    if args.layers:
-        lo, _, hi = args.layers.partition("-")
-        layers = list(range(int(lo), int(hi or lo) + 1))
+    proj_sets = {"all": list(ATTN) + ["gate_proj", "up_proj", "down_proj"], "attn": list(ATTN),
+                 "mlp": ["gate_proj", "up_proj", "down_proj"]}
+    if args.spec:                                   # W83: heterogeneous set
+        pairs = []
+        for part in args.spec.split(";"):
+            rng, pr = part.split(":")
+            lo, _, hi = rng.partition("-")
+            pl = proj_sets.get(pr, pr.split(","))
+            pairs += [(L, p) for L in range(int(lo), int(hi or lo) + 1) for p in pl]
+        projs = sorted({p for _, p in pairs})
     else:
-        assert args.layer is not None, "--layer or --layers required"
-        layers = [args.layer]
-    projs = {"all": list(ATTN) + ["gate_proj", "up_proj", "down_proj"], "attn": list(ATTN),
-             "mlp": ["gate_proj", "up_proj", "down_proj"]}.get(args.proj, args.proj.split(","))
+        if args.layers:
+            lo, _, hi = args.layers.partition("-")
+            layers = list(range(int(lo), int(hi or lo) + 1))
+        else:
+            assert args.layer is not None, "--layer or --layers required"
+            layers = [args.layer]
+        projs = proj_sets.get(args.proj, args.proj.split(","))
+        pairs = [(L, p) for L in layers for p in projs]
+    print(f"[transplant] {len(pairs)} matrices: {pairs}", flush=True)
 
     donor, _ = load_model(args.donor)
-    Wd = {(L, p): get_linear(donor, L, p).weight.data.detach().clone().cpu() for L in layers for p in projs}
+    Wd = {(L, p): get_linear(donor, L, p).weight.data.detach().clone().cpu() for L, p in pairs}
     del donor
     gc.collect()
     torch.cuda.empty_cache()
@@ -74,9 +88,9 @@ def main():
               f"(target ||W||_F {Wt.float().norm():.4g}); max|W| target {Wt.abs().max():.4g} donor {w.abs().max():.4g}; "
               f"rows with largest change: {diff.norm(dim=1).topk(3).indices.tolist()}", flush=True)
         lin.weight.data.copy_(w.to(Wt.device, Wt.dtype))
-    args.layer = layers[0]
-    args.proj = ",".join(projs) if len(projs) < 7 else "all"
-    args.layers_str = args.layers or str(args.layer)
+    args.layer = pairs[0][0]
+    args.proj = args.spec or (",".join(projs) if len(projs) < 7 else "all")
+    args.layers_str = args.spec or args.layers or str(args.layer)
 
     prompts = read_jsonl(args.prompts)
     out_rows = []

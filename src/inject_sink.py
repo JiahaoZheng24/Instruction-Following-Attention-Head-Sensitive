@@ -271,11 +271,16 @@ def mode_artifact(args):
     both = hidden_after(model, tok, texts, [L], args.max_len, dp_layer=L)
     h_fp, x_dp = both[L], both[("dpin", L)]
     u = bos_direction(h_fp)
+    W_dp = model.model.layers[L].mlp.down_proj.weight.data.float().cpu()   # W76: for the row readout
     del model
     gc.collect()
     torch.cuda.empty_cache()
     qm, _ = load_model(args.quant)
     h_q = hidden_after(qm, tok, texts, [L], args.max_len)[L]
+    delta_dp = W_dp - qm.model.layers[L].mlp.down_proj.weight.data.float().cpu()   # W - Q of the lesion matrix
+    whiten = torch.load(args.whiten, map_location="cpu") if args.whiten else None
+    if whiten is not None:
+        assert int(whiten["layer"]) == L, f"--whiten file is for layer {whiten['layer']}, artifact runs layer {L}"
     rows = []
     for name, sl in [("bos", slice(0, 1)), ("tpl", slice(lo, hi + 1)), ("rest", slice(hi + 1, hi + 9))]:
         cos, rel, share = [], [], []
@@ -319,32 +324,72 @@ def mode_artifact(args):
             rows.append({"class": f"{k}(n={len(v)})", "cos_with_bos_dir": sum(x[0] for x in v) / len(v),
                          "rel_err": sum(x[1] for x in v) / len(v), "energy_share_on_bos_dir": float("nan")})
         # W68 derivation test: ||e_t|| (residual error after layer L) vs |x_0^T x_t| at the down_proj input.
-        ov, err, kinds = [], [], []
+        # W76 (E1): the same against the WHITENED overlap |v^T x_t|, v = M^{-1} x_0 from the calibration
+        # Hessian (Corollary 2 of the collaborator's draft; needs --whiten), and against the ROW READOUT
+        # |delta_r^T x_t| of the lesion row r (the error the quantised matrix itself writes into the sink
+        # output channel at this token); plus the share of ||e_t||^2 that sits in channel r.
+        r_top = int(delta_dp.pow(2).sum(1).argmax())
+        if whiten is not None and "toprow_C" in whiten:
+            r_top = int(whiten["toprow_C"])
+        d_r = delta_dp[r_top]
+        v_w = whiten["v"].float() if whiten is not None else None
+        stats = {"iso": [], "white": [], "row": []}
+        err, err_rshare, kinds, parts, tokstr = [], [], [], [], []
         for a, b, x, t, pl in zip(h_fp, h_q, x_dp, texts, prompt_len):
             ids = tok(t, return_tensors="pt", truncation=True, max_length=args.max_len)["input_ids"][0]
             if b.shape[0] != a.shape[0] or x.shape[0] != a.shape[0] or a.shape[0] != ids.shape[0]:
                 continue
             x0 = x[0]
             for p in range(1, a.shape[0]):
-                ov.append(float((x0 @ x[p]).abs() / x0.norm()))
-                err.append(float((b[p] - a[p]).norm()))
+                e = b[p] - a[p]
+                stats["iso"].append(float((x0 @ x[p]).abs() / x0.norm()))
+                stats["white"].append(float((v_w @ x[p]).abs() / v_w.norm()) if v_w is not None else float("nan"))
+                stats["row"].append(float((d_r @ x[p]).abs()))
+                err.append(float(e.norm()))
+                err_rshare.append(float(e[r_top] ** 2 / e.norm().clamp(min=1e-9) ** 2))
                 kinds.append("template" if int(ids[p]) in tids_tpl else ("newline" if int(ids[p]) in tids_nl else "ordinary"))
-        if len(ov) > 10:
-            o_t, e_t = torch.tensor(ov), torch.tensor(err)
-            pear = float(torch.corrcoef(torch.stack([o_t, e_t]))[0, 1])
-            lo_t, le_t = o_t.clamp(min=1e-9).log(), e_t.clamp(min=1e-9).log()
-            pear_log = float(torch.corrcoef(torch.stack([lo_t, le_t]))[0, 1])
-            qs = torch.quantile(o_t, torch.tensor([0.2, 0.4, 0.6, 0.8]))
-            bins = torch.bucketize(o_t, qs)
-            for q in range(5):
-                m = bins == q
-                kk = [kinds[i] for i in torch.nonzero(m).flatten().tolist()]
-                frac_tpl = (sum(k != "ordinary" for k in kk) / max(len(kk), 1))
-                rows.append({"class": f"overlap_q{q + 1}(n={int(m.sum())},tpl_frac={frac_tpl:.2f})",
-                             "cos_with_bos_dir": float("nan"), "rel_err": float(e_t[m].mean()),
-                             "energy_share_on_bos_dir": float(o_t[m].mean())})
-            rows.append({"class": f"pearson(|x0.x_t|,||e_t||) linear={pear:.3f} log={pear_log:.3f} n={len(ov)}",
-                         "cos_with_bos_dir": pear, "rel_err": pear_log, "energy_share_on_bos_dir": float("nan")})
+                parts.append("prompt" if p < pl else "resp")
+                tokstr.append(tok.decode([int(ids[p])]).replace("\n", "\\n"))
+        if len(err) > 10:
+            e_t = torch.tensor(err)
+            for name, ov in stats.items():
+                o_t = torch.tensor(ov)
+                if not torch.isfinite(o_t).all():
+                    continue
+                pear = float(torch.corrcoef(torch.stack([o_t, e_t]))[0, 1])
+                lo_t, le_t = o_t.clamp(min=1e-9).log(), e_t.clamp(min=1e-9).log()
+                pear_log = float(torch.corrcoef(torch.stack([lo_t, le_t]))[0, 1])
+                rk = lambda z: torch.argsort(torch.argsort(z)).float()   # noqa: E731  Spearman
+                spear = float(torch.corrcoef(torch.stack([rk(o_t), rk(e_t)]))[0, 1])
+                qs = torch.quantile(o_t, torch.tensor([0.2, 0.4, 0.6, 0.8]))
+                bins = torch.bucketize(o_t, qs)
+                n_tpl = sum(k != "ordinary" for k in kinds)
+                for q in range(5):
+                    m = bins == q
+                    kk = [kinds[i] for i in torch.nonzero(m).flatten().tolist()]
+                    n_here = sum(k != "ordinary" for k in kk)
+                    frac_tpl = n_here / max(len(kk), 1)          # share of this quintile that is template/newline
+                    recall_tpl = n_here / max(n_tpl, 1)          # share of ALL template/newline tokens in this quintile
+                    rows.append({"class": f"{name}_q{q + 1}(n={int(m.sum())},tpl_frac={frac_tpl:.2f},tpl_recall={recall_tpl:.2f})",
+                                 "cos_with_bos_dir": float("nan"), "rel_err": float(e_t[m].mean()),
+                                 "energy_share_on_bos_dir": float(o_t[m].mean())})
+                rows.append({"class": f"{name}_pearson linear={pear:.3f} log={pear_log:.3f} spearman={spear:.3f} n={len(err)}",
+                             "cos_with_bos_dir": pear, "rel_err": pear_log, "energy_share_on_bos_dir": spear})
+            # share of the hidden-state error energy in the lesion row's channel, by token class
+            rs = torch.tensor(err_rshare)
+            for kind in ("template", "newline", "ordinary"):
+                m = torch.tensor([k == kind for k in kinds])
+                if m.any():
+                    rows.append({"class": f"rowshare_{kind}(row={r_top},n={int(m.sum())})", "cos_with_bos_dir": float("nan"),
+                                 "rel_err": float(e_t[m].mean()), "energy_share_on_bos_dir": float(rs[m].mean())})
+            if args.out_tokens:
+                os.makedirs(os.path.dirname(args.out_tokens) or ".", exist_ok=True)
+                with open(args.out_tokens, "w", newline="", encoding="utf-8") as f:
+                    w = csv.writer(f)
+                    w.writerow(["part", "kind", "token", "ov_iso", "ov_white", "ov_row", "err", "err_rowshare"])
+                    for i in range(len(err)):
+                        w.writerow([parts[i], kinds[i], tokstr[i], f"{stats['iso'][i]:.5g}", f"{stats['white'][i]:.5g}",
+                                    f"{stats['row'][i]:.5g}", f"{err[i]:.5g}", f"{err_rshare[i]:.4f}"])
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["class", "cos_with_bos_dir", "rel_err", "energy_share_on_bos_dir"])
@@ -357,9 +402,134 @@ def mode_artifact(args):
     print(f"[artifact] -> {args.out}")
 
 
+# -------------------------------------------------------------- patch (W77)
+class Patcher:
+    """Activation patching. During prefill (T > 1) the residual stream after `layer`
+    at the selected positions of each prompt is replaced by the full-precision
+    model's values; decode steps are untouched. Batches are left-padded, so the
+    stored positions are offset by the first non-pad index of each row."""
+
+    def __init__(self, model, layer, store):
+        self.store = store              # prompt index -> (positions LongTensor, vectors [n, d] fp32)
+        self.batch_ids = None
+        self.mask = None
+        self.n_patched = 0
+        self.h_top = model.register_forward_pre_hook(self._catch, with_kwargs=True)
+        self.h_layer = model.model.layers[layer].register_forward_hook(self._patch)
+
+    def _catch(self, _m, args, kw):
+        self.mask = kw.get("attention_mask")
+
+    def _patch(self, _m, _a, out):
+        h = out[0] if isinstance(out, tuple) else out
+        B, T, _ = h.shape
+        if T == 1 or self.batch_ids is None:
+            return out
+        h = h.clone()
+        for b, idx in enumerate(self.batch_ids):
+            pos, vec = self.store[idx]
+            if self.mask is not None and self.mask.shape[0] == B and self.mask.shape[1] == T:
+                nz = torch.nonzero(self.mask[b], as_tuple=False)
+                start = int(nz[0]) if nz.numel() else 0
+            else:
+                start = 0
+            p = pos.cpu() + start
+            ok = p < T
+            sel = p[ok].tolist()
+            if not sel:
+                continue
+            h[b, sel] = vec[ok].to(device=h.device, dtype=h.dtype)
+            self.n_patched += len(sel)
+        return (h,) + tuple(out[1:]) if isinstance(out, tuple) else h
+
+    def remove(self):
+        self.h_top.remove()
+        self.h_layer.remove()
+
+
+@torch.no_grad()
+def mode_patch(args):
+    """--model = quantised checkpoint, --ref = full-precision model; --select which prompt positions
+    to restore: template (special + newline tokens), ordinary (same count, seeded, non-template),
+    bos (position 0), all (whole prompt), or lo-hi."""
+    ref, tok = load_model(args.ref)
+    prompts = read_jsonl(args.prompts)
+    texts = [chat(tok, ex["prompt"]) for ex in prompts]
+    tids = token_set(tok, "template,newline")
+    gen = torch.Generator().manual_seed(args.seed)
+    store, counts = {}, []
+    for i, t in enumerate(texts):
+        ex_prompt = prompts[i]["prompt"]
+        ids = tok(t, return_tensors="pt", truncation=True, max_length=2048).to(ref.device)
+        T = ids["input_ids"].shape[1]
+        is_tpl = torch.tensor([int(x) in tids for x in ids["input_ids"][0].tolist()])
+        is_tpl[0] = False                                   # BOS handled separately
+        # W80: the whole chat scaffold = every prompt token outside the user's own text (special tokens,
+        # newlines, role names and the template's default system block), located by character offsets.
+        enc_off = tok(t, return_offsets_mapping=True, truncation=True, max_length=2048)
+        c0 = t.find(ex_prompt)
+        c1 = c0 + len(ex_prompt)
+        is_scaf = torch.tensor([not (c0 <= a_ and b_ <= c1) for a_, b_ in enc_off["offset_mapping"]])
+        if is_scaf.shape[0] != T:
+            is_scaf = torch.zeros(T, dtype=torch.bool)
+        is_scaf[0] = False
+        if args.select == "template":
+            pos = torch.nonzero(is_tpl).flatten()
+        elif args.select == "ordinary":
+            cand = torch.nonzero(~is_tpl).flatten()
+            cand = cand[cand > 0]
+            n = int(is_tpl.sum())
+            pos = cand[torch.randperm(len(cand), generator=gen)[:n]].sort().values
+        elif args.select == "scaffold":
+            pos = torch.nonzero(is_scaf).flatten()
+        elif args.select == "content":          # same count as the scaffold, drawn from the user's text
+            cand = torch.nonzero(~is_scaf).flatten()
+            cand = cand[cand > 0]
+            n = int(is_scaf.sum())
+            pos = cand[torch.randperm(len(cand), generator=gen)[:n]].sort().values
+        elif args.select == "bos":
+            pos = torch.tensor([0])
+        elif args.select == "all":
+            pos = torch.arange(T)
+        else:
+            lo, hi = parse_pos(args.select)
+            pos = torch.arange(lo, min(hi + 1, T))
+        o = ref(**ids, output_hidden_states=True, use_cache=False)
+        h = o.hidden_states[args.layer + 1][0].float().cpu()
+        store[i] = (pos, h[pos].clone())
+        counts.append(len(pos))
+        del o
+    print(f"[patch] {args.select}: {sum(counts) / len(counts):.1f} positions per prompt restored to fp16 "
+          f"(layer {args.layer} output, prefill only)", flush=True)
+    del ref
+    gc.collect()
+    torch.cuda.empty_cache()
+    qm, _ = load_model(args.model)
+    pt = Patcher(qm, args.layer, store)
+    out_rows = []
+    for i in range(0, len(prompts), args.batch):
+        batch = prompts[i:i + args.batch]
+        pt.batch_ids = list(range(i, i + len(batch)))
+        enc = tok([chat(tok, ex["prompt"]) for ex in batch], return_tensors="pt", padding=True,
+                  truncation=True, max_length=2048).to(qm.device)
+        g = qm.generate(**enc, do_sample=False, max_new_tokens=MAX_NEW_TOKENS, pad_token_id=tok.pad_token_id)
+        for ex, seq in zip(batch, g):
+            out_rows.append({"prompt": ex["prompt"],
+                             "response": tok.decode(seq[enc["input_ids"].shape[1]:], skip_special_tokens=True)})
+        print(f"[patch:{args.tag}] {min(i + args.batch, len(prompts))}/{len(prompts)}", flush=True)
+    pt.remove()
+    run_dir = os.path.join("runs", os.path.basename(args.model), args.tag)
+    os.makedirs(run_dir, exist_ok=True)
+    write_jsonl(os.path.join(run_dir, "responses.jsonl"), out_rows)
+    with open(os.path.join(run_dir, "config.txt"), "w") as f:
+        f.write(f"model={args.model}\nref={args.ref}\npatch layer={args.layer} select={args.select} "
+                f"mean_positions={sum(counts) / len(counts):.2f} n_patched={pt.n_patched}\n")
+    print(f"[patch] {len(out_rows)} responses -> {run_dir}/responses.jsonl (patched {pt.n_patched} positions)")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("mode", choices=["measure", "inject", "artifact"])
+    ap.add_argument("mode", choices=["measure", "inject", "artifact", "patch"])
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--quant", help="artifact: quantized checkpoint")
     ap.add_argument("--prompts", required=True)
@@ -376,8 +546,14 @@ def main():
     ap.add_argument("--no-pos", action="store_true", help="inject: do not perturb the prompt positions --pos")
     ap.add_argument("--continuation", type=int, default=0,
                     help="artifact: extend prompts by N greedy fp16 tokens; report error by token class, prompt vs response")
+    ap.add_argument("--whiten", help="artifact (W76): file from src/theory_tests.py --save-whiten (x0, v, lesion row)")
+    ap.add_argument("--ref", help="patch (W77): full-precision model whose hidden states are restored")
+    ap.add_argument("--select", default="template",
+                    help="patch (W77/W80): template | ordinary | bos | all | scaffold | content | lo-hi (positions of the prompt to restore)")
+    ap.add_argument("--seed", type=int, default=0, help="patch: seed for the ordinary-position control")
+    ap.add_argument("--out-tokens", help="artifact (W76): per-token csv (overlap statistics, error, row share)")
     args = ap.parse_args()
-    {"measure": mode_measure, "inject": mode_inject, "artifact": mode_artifact}[args.mode](args)
+    {"measure": mode_measure, "inject": mode_inject, "artifact": mode_artifact, "patch": mode_patch}[args.mode](args)
 
 
 if __name__ == "__main__":

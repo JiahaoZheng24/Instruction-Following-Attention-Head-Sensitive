@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/f-q14-gptq3-c4-patch-scaffold
+ref=Qwen/Qwen2.5-14B-Instruct
+patch layer=4 select=scaffold mean_positions=28.00 n_patched=15148

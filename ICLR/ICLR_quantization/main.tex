@@ -1,4 +1,4 @@
-% Main file.  Compile:  pdflatex main && bibtex main && pdflatex main && pdflatex main
+ % Main file.  Compile:  pdflatex main && bibtex main && pdflatex main && pdflatex main
 % Style files (iclr2027_conference.sty/.bst, fancyhdr.sty, natbib.sty) are untouched.
 % Body text lives in sections/, tables in tables/, artwork in figures/.
 \documentclass{article} % For LaTeX2e
@@ -12,7 +12,9 @@
 
 % --- added for this paper (no formatting parameters of the style are changed) ---
 \usepackage{graphicx}
+\usepackage{array}
 \graphicspath{{figures/}}
+\usepackage{longtable}         % appendix C spans pages
 \usepackage{booktabs}          % \toprule \midrule \bottomrule in tables/
 \usepackage{multirow}
 \usepackage{amsmath,amssymb,amsthm}
@@ -25,15 +27,17 @@
 \newtheorem{lemma}{Lemma}
 \newtheorem{corollary}{Corollary}
 \newtheorem{assumption}{Assumption}
+\crefname{assumption}{Assumption}{Assumptions}
+\Crefname{assumption}{Assumption}{Assumptions}
 \input{sections/00_macros.tex}
 \input{sections/00_numbers.tex}
 % --------------------------------------------------------------------------------
 
 % Title candidates (pick one before 2026-09-18):
-%  1. One Token Owns the Hessian: Why Layer-wise Quantisation Silently Breaks Instruction Following
+%  1. One Token Owns the Hessian: Why Layer-wise Quantization Silently Breaks Instruction Following
 %  2. The Missing Half of the Curvature: A Silent Failure of GPTQ on Instruction-Tuned Models
-%  3. Attention Sinks Blind Layer-wise Quantisation to the Tokens That Matter
-\title{One Token Owns the Hessian: \\ Why Layer-wise Quantisation Silently Breaks Instruction Following}
+%  3. Attention Sinks Blind Layer-wise Quantization to the Tokens That Matter
+\title{One Token Owns the Calibration Hessian: \\ Why Layer-wise Quantization Silently Breaks Instruction Following}
 
 % Authors must not appear in the submitted version. They should be hidden
 % as long as the \iclrfinalcopy macro remains commented out below.

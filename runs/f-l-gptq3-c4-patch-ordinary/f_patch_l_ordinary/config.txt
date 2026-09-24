@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/f-l-gptq3-c4-patch-ordinary
+ref=meta-llama/Llama-3.1-8B-Instruct
+patch layer=1 select=ordinary mean_positions=8.10 n_patched=4380

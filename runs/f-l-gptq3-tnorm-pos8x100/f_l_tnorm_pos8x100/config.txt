@@ -1,0 +1,3 @@
+model=/store01/yshi4/jzheng7/models/f-l-gptq3-tnorm-pos8x100
+heads=[]
+n=0

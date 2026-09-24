@@ -119,6 +119,22 @@ def load_calib(kind: str, tokenizer, n: int, seqlen: int, seed: int = 0) -> list
                 break
         assert len(texts) == n, f"{kind}: only {len(texts)} docs with >= {seqlen} tokens"
         return texts
+    if kind == "pileshort":
+        # W80: the short-document protocol with a different corpus. Same sampling
+        # shape as 'c4' (each document tokenised separately, char cap, tokenizer
+        # trims), documents drawn from NeelNanda/pile-10k instead of C4.
+        from datasets import load_dataset
+        ds = load_dataset("NeelNanda/pile-10k", split="train")
+        texts, skip = [], seed * n
+        for ex in ds:
+            if len(ex["text"]) > 200:
+                if skip > 0:
+                    skip -= 1
+                    continue
+                texts.append(ex["text"][: seqlen * 8])
+            if len(texts) >= n:
+                break
+        return texts
     # c4 (default, literature-standard)
     from datasets import load_dataset
     ds = load_dataset("allenai/c4", "en", split="train", streaming=True)

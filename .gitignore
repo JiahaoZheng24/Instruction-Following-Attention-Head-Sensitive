@@ -7,3 +7,7 @@ gptqmodel_offload/
 __pycache__/
 *.pyc
 runs/stats/**/send_mass_*.pt
+
+# anonymized release build (pushed to a separate repository)
+ICLR/anon_release/
+ICLR/anon_release.zip

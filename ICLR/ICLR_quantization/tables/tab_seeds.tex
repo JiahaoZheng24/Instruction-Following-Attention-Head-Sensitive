@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\caption{Calibration draws. IFEval of the three collapses under independent draws of the calibration set (seed 0 is the draw used everywhere else), and of the corrected objective under two draws; the corrected objective's damping sensitivity on Llama. Every draw that collapses does so by 23 to 45 points below RTN; the one that does not (Llama, seed 1) is the case analyzed in \cref{sec:lesion}.}
+\label{tab:seeds}
+\begin{center}
+\footnotesize
+\begin{tabular}{llccccc}
+\toprule
+Model, protocol & Arm & seed 0 & seed 1 & seed 2 & seed 3 & seed 4 \\
+\midrule
+Llama-3.1-8B, short documents & GPTQ3 & 0.155 & 0.531 & 0.149 & 0.141 & 0.174 \\
+                               & corrected & 0.638 & 0.669 & & & \\
+Llama-3.1-8B, Pile windows     & corrected & 0.626 & 0.626 & & & \\
+Qwen2.5-14B, short documents   & GPTQ3 & 0.426 & 0.351 & 0.378 & 0.250 & \\
+                               & corrected & 0.736 & 0.730 & & & \\
+Mistral-7B-v0.3, C4 windows    & GPTQ3 & 0.187 & 0.173 & & & \\
+                               & corrected & 0.433 & 0.424 & & & \\
+\midrule
+\multicolumn{7}{l}{Corrected objective, Llama, short documents, by damping: $\rho=0.01$ \CorrRhoLow{}, $\rho=0.05$ \LcorrIF{}, $\rho=0.2$ \CorrRhoHigh{}.} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

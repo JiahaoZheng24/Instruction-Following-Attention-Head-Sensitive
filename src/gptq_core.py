@@ -97,6 +97,24 @@ def quant_col(w: torch.Tensor, scale: torch.Tensor, zero: torch.Tensor, bits: in
     return (scale * (q - zero)).flatten(), clipped
 
 
+def gar_perm(d: torch.Tensor, group_size: int) -> torch.Tensor:
+    """GPTQModel's group-aware reordering (act_group_aware, its default since 5.x; W91 found it avoids
+    the collapse that act-order and the natural order produce). Columns are sorted by diag(H) descending
+    INSIDE each original group of `group_size` columns, the groups are ranked by their largest diag(H)
+    (GPTQModel's default metric 'max') and kept contiguous, and a partial tail group keeps its order.
+    Because our loop forms groups along the processing order, this equals static original groups."""
+    n = d.numel()
+    gs = group_size if group_size and group_size != -1 else n
+    nfull = (n // gs) * gs
+    if nfull == 0:
+        return torch.argsort(d, descending=True)
+    vals, idx = torch.sort(d[:nfull].view(-1, gs), dim=1, descending=True)
+    base = torch.arange(0, nfull, gs, device=d.device).unsqueeze(1)
+    gorder = torch.argsort(vals[:, 0], descending=True)
+    perm = (idx + base)[gorder].reshape(-1)
+    return torch.cat([perm, torch.arange(nfull, n, device=d.device)])
+
+
 def rtn_grouped(W: torch.Tensor, bits: int, group_size: int, sym: bool = True,
                 mask: torch.Tensor | None = None, scale_excl_mask: bool = False):
     """Grouped RTN of a full matrix (contiguous groups in the given column
@@ -172,6 +190,11 @@ class MaskedGPTQ:
         # ||dL/dy_t||^2 from grad_weights.collect_token_sides). Applies to H
         # only, never to the diagnostic Hessians.
         self.token_w = None
+        # W77: (K, c) -> multiply the first K positions of every calibration sample
+        # by c inside H (after any normalisation / gradient weight). c > 1 with
+        # token_norm asks whether the POSITION CLASS alone repairs; c < 1 with the
+        # corrected objective removes the template positions' weight from it.
+        self.pos_weight = None
 
     @torch.no_grad()
     def _accum(self, H, n_prev, inp):
@@ -212,6 +235,11 @@ class MaskedGPTQ:
                 w = w[-x.shape[0]:]
             assert w.numel() == x.shape[0], f"token_w {w.numel()} vs tokens {x.shape[0]} ({self.name})"
             inp = x * w.to(x.device, torch.float32).sqrt().unsqueeze(1)
+        if self.pos_weight is not None:
+            K, c = self.pos_weight
+            x = inp.reshape(-1, self.columns).float().clone()
+            x[:K] = x[:K] * (c ** 0.5)
+            inp = x
         self.nsamples = self._accum(self.H, self.nsamples, inp)
 
     @torch.no_grad()
@@ -250,7 +278,10 @@ class MaskedGPTQ:
         W_orig = W.clone() if stats is not None else None  # original order
 
         if actorder:
-            perm = torch.argsort(torch.diag(H), descending=True)
+            if actorder == 'gar':
+                perm = gar_perm(torch.diag(H), group_size)
+            else:
+                perm = torch.argsort(torch.diag(H), descending=True)
             W = W[:, perm]
             H = H[perm][:, perm]
             if M is not None:
@@ -273,6 +304,9 @@ class MaskedGPTQ:
         Q = torch.zeros_like(W)
         scale = zero = None
         W_pre = W.clone() if stats is not None else None   # permuted, pre-loop
+        # W76: per-entry accumulated compensation at the moment each column is rounded
+        # (w_at_quant - w_orig), the object Theorem 1 is about; returned as stats['disp_matrix'].
+        D = torch.zeros_like(W) if (stats is not None and stats.get("want_disp")) else None
         n_clip = 0
         n_quant = 0
         comp_disp = 0.0                                     # sum ||w_at_quant - w_orig||^2
@@ -312,6 +346,8 @@ class MaskedGPTQ:
                     n_clip += int(clipped.sum())
                     n_quant += int((~M[:, col]).sum()) if M is not None else self.rows
                     comp_disp += float(((w - W_pre[:, col]) ** 2).sum())
+                    if D is not None:
+                        D[:, col] = w - W_pre[:, col]
                 Q1[:, i] = q
                 err = (w - q) / d
                 if stats is not None and col + 1 < self.columns:
@@ -327,11 +363,15 @@ class MaskedGPTQ:
             Q = Q[:, invperm]
             if send_mass is not None:
                 send_mass = send_mass[invperm]
+            if D is not None:
+                D = D[:, invperm]
 
         if stats is not None:
             self._fill_stats(stats, W_orig, Q, Hraw, bits, group_size, sym,
                              mask, scale_excl_mask, n_clip, n_quant,
                              comp_disp, send_mass, cond, dead, percdamp=percdamp)
+            if D is not None:
+                stats["disp_matrix"] = D.cpu()
 
         self.layer.weight.data = Q.to(self.layer.weight.dtype)
         del H, Hinv

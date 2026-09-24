@@ -1,33 +1,29 @@
 \section{A silent, protocol-dependent failure}
 \label{sec:phenomenon}
 \paragraph{Setup.}
-The main experiments use Llama-3.1-8B-Instruct \citep{grattafiori2024llama3}, Qwen2.5-14B-Instruct \citep{qwen2025qwen25} and Mistral-7B-Instruct-v0.3 \citep{jiang2023mistral}; the census of \cref{sec:universality} covers \nCensus{} instruction-tuned models from 0.5B to 32B parameters.
-Weights are quantised to 3 or 4 bits (symmetric, group size 128, act-order, $\rho=0.05$) and kept on the integer grid in 16-bit storage so that every arm shares the same inference code.
-The \emph{short-document} protocol tokenises 128 C4 documents \citep{raffel2020c4} separately (mean 420 tokens), as GPTQModel \citep{gptqmodel} and LLM Compressor \citep{llmcompressor} do by default; the \emph{window} protocol draws 128 random windows of 2,048 tokens, as in the original GPTQ code, from C4 (c4win) or the Pile \citep{gao2021pile}.
-IFEval \citep{zhou2023ifeval} is reported as the mean of prompt- and instruction-level strict and loose accuracy over 541 prompts with greedy decoding; a different calibration seed moves it by up to \SeedNoise{} points, which we treat as noise.
-Multi-IF \citep{he2024multiif}, GSM8K \citep{cobbe2021gsm8k}, MMLU \citep{hendrycks2021mmlu} and WikiText-2 perplexity \citep{merity2017wikitext} are described in \cref{app:protocols}.
+The main experiments use Llama-3.1-8B-Instruct \citep{grattafiori2024llama3}, Qwen2.5-14B-Instruct \citep{qwen2025qwen25} and Mistral-7B-Instruct-v0.3 \citep{jiang2023mistral}; the census of \cref{sec:universality} covers \nCensus{} instruction-tuned models from 1.7B to 32B.
+Weights are quantized to 3 or 4 bits (symmetric, group size 128, act-order, $\rho=0.05$) and kept on the integer grid in 16-bit storage; \cref{tab:defaults} separates library defaults from our choices.
+GPTQModel's own default loop, which orders the columns group by group, collapses neither model, whereas act-order or the natural order inside it collapses Llama (\cref{tab:library}): the failure is that of the reference loop under the libraries' sampling.
+The \emph{short-document} protocol tokenizes 128 C4 documents \citep{raffel2020c4} separately (mean 420 tokens), as GPTQModel \citep{gptqmodel} and LLM Compressor \citep{llmcompressor} do by default; the \emph{window} protocol draws 128 random 2,048-token windows, as the original GPTQ code does, from C4 (c4win) or the Pile \citep{gao2021pile}.
+IFEval \citep{zhou2023ifeval} is the mean of prompt- and instruction-level strict and loose accuracy over 541 prompts, greedy decoding; a different calibration draw moves a non-collapsing arm by up to \SeedNoise{} points, which we treat as noise; Multi-IF \citep{he2024multiif}, GSM8K \citep{cobbe2021gsm8k}, MMLU \citep{hendrycks2021mmlu} and WikiText-2 perplexity \citep{merity2017wikitext} are described in \cref{app:protocols}.
+On Llama and Mistral the chat template and the tokenizer each write a \bos{}, so every generation prompt carries two; a single-\bos{} control moves no conclusion (\cref{app:protocols}).
 
 \begin{figure}[t]
 \begin{center}
-\fig{fig2_bars}{0.7\linewidth}
+\fig{fig2_bars}{\linewidth}
 \end{center}
-\caption{Llama-3.1-8B-Instruct at fp16 (\LfpIF{}), 3-bit RTN (\LrtnIF{}), 3-bit GPTQ with the default short-document calibration (\LgptqIF{}), 3-bit GPTQ with the corrected objective (\LcorrIF{}) and 4-bit GPTQ (\LgptqFourIF{}): IFEval (bars) against MMLU and WikiText perplexity of the same checkpoints (markers). \todo{plot from runs/INDEX\_scores.csv, f\_ tags}}
+\caption{The collapse and its silence. \textbf{(a)} 3-bit GPTQ calibrated on short documents against RTN on the same grid, Llama-3.1-8B and Qwen2.5-14B: the compensation step loses 27 to 64 points on every generation benchmark and gains on MMLU. \textbf{(b)} IFEval of 3-bit GPTQ under seven calibration protocols; a marker is filled red when it lies more than the seed noise below the model's RTN score (dashed lines).}
 \label{fig:bars}
 \end{figure}
 \paragraph{Collapse that likelihood does not show.}
-Under the short-document protocol, 3-bit GPTQ leaves Llama at \LgptqIF{} and Qwen at \QgptqIF{} on IFEval, 30 to 40 points below RTN at the same bit-width (\cref{fig:bars}, \cref{tab:collapse}): a step whose only purpose is to reduce each layer's reconstruction error has made the model worse than no compensation.
-The collapsed Llama model answers most prompts with unformatted or truncated text, so GSM8K falls to \LgptqGSM{} (RTN \LrtnGSM{}) and the loss persists over every turn of Multi-IF.
-The same checkpoints have an MMLU of \LgptqMMLU{} and \QgptqMMLU{}, above their RTN counterparts (\LrtnMMLU{} and \QrtnMMLU{}), and the Qwen checkpoint has a better perplexity than RTN as well (\QgptqPPL{} against \QrtnPPL{}); Llama's perplexity (\LgptqPPL{} against \LrtnPPL{}) is the one likelihood signal that moves, and it moves far less than the generation does.
-Both metrics are teacher-forced: they score the likelihood of given text and never visit the states the model produces when writing its own response, whereas the damage, as \cref{sec:lesion} shows, sits on the prompt-template tokens that steer generation.
+Round-to-nearest, the reference throughout, is GPTQ without the compensation step, so any gap between the two is the compensation's own doing.
+Under the short-document protocol, 3-bit GPTQ leaves Llama at \LgptqIF{} and Qwen at \QgptqIF{}, 41 and 27 points below RTN (\cref{fig:bars}, \cref{tab:collapse}): a step whose only purpose is to reduce each layer's reconstruction error has made the model worse than no compensation.
+The collapsed Llama answers most prompts with unformatted or truncated text, so GSM8K falls to \LgptqGSM{} (RTN \LrtnGSM{}) and the loss persists over every turn of Multi-IF, yet the same checkpoints have an MMLU above their RTN counterparts (\LgptqMMLU{} and \QgptqMMLU{} against \LrtnMMLU{} and \QrtnMMLU{}) and Qwen's perplexity is better than RTN's (\QgptqPPL{} against \QrtnPPL{}); Llama's perplexity (\LgptqPPL{} against \LrtnPPL{}) is the one likelihood signal that moves, far less than the generation.
+The metrics miss the collapse because the damage sits on the chat-template tokens that steer generation (\cref{sec:lesion}), which neither WikiText nor a few-shot MMLU prompt contains.
 
 \paragraph{Dependence on how the calibration text is cut.}
-With 2,048-token windows in place of short documents, Llama recovers to \LcwinIF{} and Qwen to \QcwinIF{}; chat-formatted text, whether the same documents wrapped in the chat template (\LcchatIF{} / \QcchatIF{}) or UltraChat conversations \citep{ding2023ultrachat} (\LuchatIF{} / \QuchatIF{}), also removes the collapse (\cref{tab:protocols_result}).
-The effect is not a matter of sample length alone: Qwen collapses again under Pile and WikiText windows (\QpileIF{}, \QwikiIF{}), and Mistral-7B-v0.3 collapses under c4win (\MgptqIF{}, RTN \MrtnIF{}) but not under short documents (\MshortIF{}).
-The two protocols that disagree are both defaults.
-We treat the dependence as a symptom; \cref{sec:lesion} locates it in a specific part of the quantised network.
-
-\paragraph{Which quantisers share it.}
-Sorting six quantisers by their objective (\cref{tab:methods}) draws one line.
-Methods that compensate rounding error through the input-side curvature of \cref{eq:layerwise} collapse: GPTQ on both models, GPTAQ on Llama; rotating the model first, as QuaRot does, removes the collapse (\LrotIF{} / \QrotIF{}) by spreading the sink token's activation over all channels, which is the condition \cref{sec:mechanism} identifies.
-AutoRound, which learns rounding offsets by a token-averaged block loss and has no OBS step, collapses on both models; RTN, HQQ \citep{badri2023hqq} and AWQ, which fit no reconstruction objective or only per-channel scales, do not.
-The dividing line is whether the method minimises a token-averaged reconstruction objective with freedom to move error between channels or tokens; the rest of the paper follows the OBS family, where the damage can be derived in closed form.
+With 2,048-token windows in place of short documents Llama recovers to \LcwinIF{} and Qwen to \QcwinIF{}, and chat-formatted text, the same documents in the chat template or UltraChat \citep{ding2023ultrachat}, also removes the collapse (\cref{fig:bars}b, \cref{tab:protocols_result}).
+It is not sample length alone: Qwen collapses again under Pile and WikiText windows, and Mistral-7B-v0.3 collapses under C4 windows (\MgptqIF{}, RTN \MrtnIF{}) but not under short documents; nor the corpus: 128 Pile documents tokenized separately collapse Llama and Qwen as C4 does; nor the token count: 1,024 short documents, more tokens than 128 windows, leave Llama at \LgptqLibIF{} (\cref{tab:defaults}).
+Its effect on Llama is visible in the calibration Hessians before any weight is rounded: the \bos{} token holds \AbosZero{} of the trace at the layer-0 down-projection under short documents against \AbosZeroWin{} under C4 windows, \AbosZeroPile{} under Pile windows and \AbosZeroWiki{} under WikiText, so a second matrix becomes \bos{}-dominated exactly under the protocol that collapses (\cref{sec:lesion}).
+Both protocols are library defaults, and the collapse is reproducible across draws with one exception: Llama collapses in \LcollapseFreq{} draws (\LseedRange{}; the fifth gives \LgptqSeedIF{}), Qwen in \QcollapseFreq{}, Mistral under C4 windows in \McollapseFreq{} (\cref{tab:seeds}).
+The exception says that collapse is a property of the sample and the model together (\cref{sec:lesion}).

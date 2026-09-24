@@ -9,11 +9,12 @@ Protocol & Tokens / sample & Llama-3.1-8B & Qwen2.5-14B & Mistral-7B-v0.3 \\
 \midrule
 RTN (no calibration)              & --    & \LrtnIF{}   & \QrtnIF{}   & \MrtnIF{} \\
 short-document C4, 128 docs       & 420   & \LgptqIF{}  & \QgptqIF{}  & \MshortIF{} \\
+short-document Pile, 128 docs     & --    & \LpileShortIF{} & \QpileShortIF{} & -- \\
 C4 windows, 128 $\times$ 2,048    & 2,048 & \LcwinIF{}  & \QcwinIF{}  & \MgptqIF{} \\
 Pile windows, 128 $\times$ 2,048  & 2,048 & \LpileIF{}  & \QpileIF{}  & -- \\
 WikiText windows, 128 $\times$ 2,048 & 2,048 & \LwikiIF{} & \QwikiIF{} & -- \\
-C4 documents in the chat template & 430   & \LcchatIF{} & \QcchatIF{} & -- \\
-UltraChat conversations           & 2,048 & \LuchatIF{} & \QuchatIF{} & -- \\
+C4 documents in the chat template & 430   & \LcchatIF{} & \QcchatIF{} & \McchatIF{} \\
+UltraChat conversations           & 2,048 & \LuchatIF{} & \QuchatIF{} & \MuchatIF{} \\
 \bottomrule
 \end{tabular}
 \end{center}

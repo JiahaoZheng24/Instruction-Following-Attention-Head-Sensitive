@@ -1,22 +1,83 @@
-\section{Proofs and extensions}
+\section{Proofs}
 \label{app:proofs}
-\todo{This appendix is the collaborator's. \cref{sec:mechanism} proves \cref{thm:rankone}(a)--(c) and \cref{prop:tokenlevel}(a)--(c) in the main text; what remains is listed below, one subsection per item. Notation is that of \cref{sec:mechanism}.}
-Measured values at the sink-forming layer of the models in \cref{sec:phenomenon}: $A_{\bos}\ge\LAbos{}$, $G_{\bos}\le\GbosMax{}$, and $\kappa=\vx_0^\top\mM^{-1}\vx_0$ \todo{value from runs/stats/f-l-3b; expected $\gg10^2$} (\cref{app:extra}).
+Notation is that of \cref{sec:mechanism}: at step $j$ the free set is $F_j=\{j,\dots,d_{\mathrm{in}}\}$, $\vx_{t,j}=\vx_t[F_j]$, $\hess_{\lambda,j}=\hess_\lambda[F_j,F_j]=\vx_{0,j}\vx_{0,j}^\top+\mM_j$ with $\mM_j\succ0$, $\vv=\mM_j^{-1}\vx_{0,j}$, $\kappa_j=\vx_{0,j}^\top\vv$ (written $\kappa$ in the main text when the step is clear, and $\kappa=\kappa_1$ before the first column is rounded) and $m_{kl}=[\mM_j^{-1}]_{kl}$.
+The \bos{} block of $\hess$ is exactly $\vx_0\vx_0^\top$ on Llama and Mistral: the first token attends only to itself, so its activation is the same vector $\vx$ in every calibration sample and $\vx_0=\sqrt{n}\,\vx$ for $n$ samples (leading-eigenvalue share 1.000 in the run index). Qwen has no \bos{} token and $t=0$ is the first document token; its block has leading-eigenvalue share 0.9995, and the share is at least 0.90 at every sink matrix of the census.
 
-\subsection{Lemma 1: two-sided curvature}
-\todo{Gauss--Newton form of the Hessian in $\operatorname{vec}\mW$; $\gsens$ as the scale of a diagonal $\mG_t$; the measurement (one backward pass per calibration sample with the summed token cross-entropy, hooks on the layer input and on the gradient of its output).}
+\subsection{The loop}
+\label{app:proofs:loop}
+The objective $E(\Delta\mW)=\operatorname{tr}[\Delta\mW\hess_\lambda\Delta\mW^\top]$ separates over rows.
+If before step $j$ the free coordinates $F_j$ minimize $E$ given the rounded ones, fixing the rounding of column $j$ and re-minimizing over $F_{j+1}$ gives, by the block-inverse identity, exactly \cref{eq:obs} with $\hess_{\lambda,j}=\hess_\lambda[F_j,F_j]$, and the new point is again a minimizer; this is the OBQ form of GPTQ \citep{frantar2022obc,frantar2023gptq}.
+Each step therefore sees the principal block $\hess_{\lambda,j+1}=\vx_{0,j+1}\vx_{0,j+1}^\top+\mM_{j+1}$ with $\mM_{j+1}=\mM_j[F_{j+1},F_{j+1}]\succ0$, so \cref{thm:rankone} applies at every step, with $\delta_j$ the residual of column $j$ as the loop reaches it.
+Since $\kappa_j=\max_{\vu\in\R^{F_j}}\{2\vu^\top\vx_{0,j}-\vu^\top\mM_j\vu\}$ and restricting $\vu$ to $F_{j+1}$ gives $\kappa_{j+1}$, $\kappa$ only falls along the loop; if $\mM_j=\lambda\mI$, then $\mM_{j+1}=\lambda\mI$ and $\kappa_{j+1}=\|\vx_{0,j+1}\|^2/\lambda$.
 
-\subsection{Lemma 2: gradient attenuation at the sink}
-\todo{Jacobian of $\vh\mapsto\vh/\operatorname{rms}(\vh)$, its operator norm, the residual path that bypasses the normalisation, and why the attenuation is by $1/\operatorname{rms}$ relative to ordinary positions \citep{chen2026gradientsinks}.}
+\subsection{Proof of \texorpdfstring{\cref{thm:rankone}}{Theorem 1}}
+\label{app:proofs:thm}
+\begin{proof}
+\emph{(a)} Since $\mM_j\succ0$ and $1+\kappa>0$, Sherman--Morrison gives
+\[
+\hess_{\lambda,j}^{-1}=\big(\mM_j+\vx_{0,j}\vx_{0,j}^\top\big)^{-1}=\mM_j^{-1}-\frac{\vv\vv^\top}{1+\kappa},
+\]
+so that
+\[
+[\hess_{\lambda,j}^{-1}]_{jk}=m_{jk}-\frac{v_jv_k}{1+\kappa},\qquad
+[\hess_{\lambda,j}^{-1}]_{jj}=m_{jj}-\frac{v_j^2}{1+\kappa}>0,
+\]
+the last because $\hess_{\lambda,j}\succ0$.
+Substituting into \cref{eq:obs} gives \cref{eq:exact}.
 
-\subsection{Theorem 1: act-order accumulation and general \texorpdfstring{$\mM$}{M}}
-\todo{(1) Successive steps: after column $j$ is rounded and the update applied, the next column's rounding error includes the update; show that under act-order (largest $x_{0j}^2$ first) the accumulated update over the sink columns stays in $\operatorname{span}\{\vx_0\}$ up to a controlled remainder, and give the remainder. (2) General $\mM$: bound the difference between \cref{eq:exact} and the $\mM=\lambda\mI$ form in terms of $\kappa$ and the off-diagonal mass of $\mM^{-1}$; the deterministic direction becomes $\vv=\mM^{-1}\vx_0$ and the overlap becomes $\vx_0^\top\mM^{-1}\vx_t$. (3) The order of $\eta^{(r)}_t=-\sum_j\delta^{(r)}_jx_{tj}$ for a grid step $\Delta$: $\|\eta_t\|\sim\Delta\|\vx_t\|/\sqrt{12}$ per row, which is the floor observed for positions with small overlap.}
+\emph{(b)} The rounding of column $j$ contributes $-\delta_jx_{tj}$ and the updates $\sum_{k>j}\Delta\vw_kx_{tk}$; with \cref{eq:obs} the two combine into a sum over all $k\in F_j$,
+\[
+\Delta\vy_t=-\,\delta_j\,\frac{\sum_{k\in F_j}[\hess_{\lambda,j}^{-1}]_{jk}\,x_{tk}}{[\hess_{\lambda,j}^{-1}]_{jj}}
+=-\,\delta_j\,\frac{[\hess_{\lambda,j}^{-1}\vx_{t,j}]_j}{[\hess_{\lambda,j}^{-1}]_{jj}} .
+\]
+By (a), $[\hess_{\lambda,j}^{-1}\vx_{t,j}]_j=[\mM_j^{-1}\vx_{t,j}]_j-v_j\,\vv^\top\vx_{t,j}/(1+\kappa)$, which is \cref{eq:outgen}.
+At $t=0$, $[\mM_j^{-1}\vx_{0,j}]_j=v_j$ and $\vv^\top\vx_{0,j}=\kappa$, so the numerator is $v_j/(1+\kappa)$ and the second form of \cref{eq:outgen} follows.
 
-\subsection{Corollary 1(iii): the remedies as one table}
-\todo{For damping, token normalisation, chat-formatted calibration, window sampling and re-rounding: the effect on $\kappa$ (or on the update directly), and the residual failure case observed in \cref{sec:corrected}.}
+\emph{(c)} For $\mM_j=\lambda\mI$,
+\[
+\vv=\frac{\vx_{0,j}}{\lambda},\qquad
+m_{kl}=\frac{\delta_{kl}}{\lambda},\qquad
+1+\kappa=\frac{\lambda+\|\vx_{0,j}\|^2}{\lambda},\qquad
+\|\vx_{0,j}\|^2=\|\vx_{0,j+1}\|^2+x_{0j}^2 .
+\]
+The denominator of \cref{eq:exact,eq:outgen} becomes $(\lambda+\|\vx_{0,j+1}\|^2)/(\lambda(\lambda+\|\vx_{0,j}\|^2))$ and the numerator of \cref{eq:exact} $x_{0j}x_{0k}/(\lambda(\lambda+\|\vx_{0,j}\|^2))$, which gives $\Delta\vw_k$.
+For \cref{eq:outgen}, using $\vx_{0,j}^\top\vx_{t,j}-x_{0j}x_{tj}=\vx_{0,j+1}^\top\vx_{t,j+1}$,
+\[
+\Delta\vy_t=-\,\delta_j\,\frac{x_{tj}(\lambda+\|\vx_{0,j}\|^2)-x_{0j}\,\vx_{0,j}^\top\vx_{t,j}}{\lambda+\|\vx_{0,j+1}\|^2}
+=-\,\delta_jx_{tj}+\delta_jx_{0j}\,\frac{\vx_{0,j+1}^\top\vx_{t,j+1}}{\lambda+\|\vx_{0,j+1}\|^2},
+\]
+and at $t=0$ the last fraction is $\|\vx_{0,j+1}\|^2/(\lambda+\|\vx_{0,j+1}\|^2)$, which gives $\Delta\vy_0$.
+\end{proof}
 
-\subsection{Proposition 3(c): approximation error}
-\todo{State \cref{eq:corrected} as an approximation of $\sum_t\vx_t\vx_t^\top\otimes\mG_t$ with an explicit error term (diagonal approximation of $\mG_t$ and per-token whitening), and remark that a weight on the token axis is the only place in \cref{eq:layerwise} where the output side can enter without changing the column-wise update, which is the boundary with \citet{lee2026kronq} and \citet{kim2025guidedquant}.}
+\subsection{Proof of \texorpdfstring{\cref{cor:shape}}{Corollary 1}}
+\label{app:proofs:shape}
+\begin{proof}
+By assumption $\mM_1=\lambda\mI$ and \cref{app:proofs:loop}, $\mM_j=\lambda\mI$ at every step, so \cref{eq:iso} applies at each step with its own residual $\delta_j$, and step $j$ updates a column $k>j$ by $\Delta\vw^{(j)}_k=\gamma_jx_{0k}\delta_j$.
 
-\subsection{Scope}
-The results are local to one matrix; they do not address the amplification of the lesion by the rest of the network, which \cref{sec:lesion} establishes by transplantation.
+(i) Column $k$ receives the updates of the steps $j<k$.
+Those of the steps in $J$ sum to $x_{0k}\sum_{j\in J,\,j<k}\gamma_j\delta_j$, which is $x_{0k}\vc$ for $k>\max J$ and a partial sum for $k$ inside $J$.
+
+(ii) $\sum_{k>j}\Delta\vw^{(j)}_kx_{tk}=\gamma_j\delta_j\sum_{k>j}x_{0k}x_{tk}=\gamma_j(\vx_{0,j+1}^\top\vx_{t,j+1})\delta_j$.
+For general $\mM_j$, the term of \cref{eq:outgen} that involves $\vv$ depends on $t$ only through $\vv^\top\vx_{t,j}=\vx_{0,j}^\top\mM_j^{-1}\vx_{t,j}$.
+
+(iii) For $\vx_{0,j+1}\neq\bm0$ (otherwise $x_{0k}=0$ and the update vanishes),
+\[
+\gamma_jx_{0k}=\frac{\|\vx_{0,j+1}\|^2}{\lambda+\|\vx_{0,j+1}\|^2}\cdot\frac{x_{0j}x_{0k}}{\|\vx_{0,j+1}\|^2}
+=\frac{\kappa_{j+1}}{1+\kappa_{j+1}}\cdot\frac{x_{0j}x_{0k}}{\|\vx_{0,j+1}\|^2},
+\]
+with $\kappa_{j+1}\le\kappa$ by \cref{app:proofs:loop}.
+By \cref{eq:iso} the step leaves $\Delta\vy_0=-\delta_jx_{0j}/(1+\kappa_{j+1})$ where rounding alone leaves $-\delta_jx_{0j}$, so the first factor is the share of the \bos{} rounding error it cancels.
+Since $k\in F_{j+1}$, $\|\vx_{0,j+1}\|^2\ge x_{0k}^2$, so the second factor is at most $|x_{0j}/x_{0k}|$.
+\end{proof}
+
+\subsection{Proof of \texorpdfstring{\cref{prop:tokenlevel}}{Proposition 2}}
+\label{app:proofs:tokenlevel}
+\begin{proof}
+(a) At step $j$ write the objective in the row deviations $\bm\epsilon_r\in\R^{F_j}$ from the current minimizer as $E_{\mG}=\sum_{r,r'}G_{rr'}\bm\epsilon_r^\top\mA\bm\epsilon_{r'}$, $\mA=\hess_{\lambda,j}$ (the induction of \cref{app:proofs:loop} goes through because the minimizer below is the same at every step).
+Let $\vu=\mA^{-1}\ve_j/[\mA^{-1}]_{jj}$, so $u_j=1$ and $\mA\vu=\ve_j/[\mA^{-1}]_{jj}$, and write $\bm\epsilon_r=c_r\vu+\vz_r$ with $c_r=-\delta^{(r)}_j$ fixed by the rounding and $z_{r,j}=0$.
+Then $\vu^\top\mA\vz_{r'}=z_{r',j}/[\mA^{-1}]_{jj}=0$, so $E_{\mG}=(\sum_{r,r'}G_{rr'}c_rc_{r'})\vu^\top\mA\vu+\operatorname{vec}(\mZ)^\top(\mG\otimes\mA)\operatorname{vec}(\mZ)$.
+The first term is fixed, the second is $\ge0$ since $\mG\succeq0$, $\mA\succ0$, and vanishes at the feasible point $\mZ=\bm0$; so $\bm\epsilon_r=-\delta^{(r)}_j\vu$ minimizes for every $\mG$ (uniquely if $\mG\succ0$), which is \cref{eq:obs}.
+A diagonal $\mG$ scales each row's objective by a positive constant, which does not change any nearest grid point.
+(b) $\operatorname{tr}\hessw=\sum_t\wtok\|\vx_t\|^2=\sum_t\gsens$, with \bos{} term $g_0$; with $\wtok=\gsens$ the trace is $\sum_t\gsens a_t$ with \bos{} term $g_0a_0$.
+The identity stated after the proposition: $\operatorname{tr}[\Delta\mW\hessw\Delta\mW^\top]=\sum_t\wtok\|\Delta\mW\vx_t\|^2=\sum_t\gsens\|\Delta\mW\vx_t/\|\vx_t\|\|^2=\sum_t(\Delta\mW\vx_t)^\top(\wtok\mI)(\Delta\mW\vx_t)$.
+\end{proof}

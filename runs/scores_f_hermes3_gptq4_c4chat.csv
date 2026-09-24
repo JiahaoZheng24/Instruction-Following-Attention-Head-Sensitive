@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_hermes3_gptq4_c4chat,0.5305,0.6247,0.5656,0.6583,0.5948

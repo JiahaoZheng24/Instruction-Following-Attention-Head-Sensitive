@@ -1,0 +1,2 @@
+tag,prompt_strict,inst_strict,prompt_loose,inst_loose,avg4
+f_l_tnorm_pos8x10,0.5434,0.6487,0.6007,0.699,0.623
