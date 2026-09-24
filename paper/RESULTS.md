@@ -2393,6 +2393,7 @@ W84 之后剩三个洞：(a) Llama seed 1 不崩（.531），但它的两个 sin
 - **发布包二次扫描（2026-09-24）**：独立宽扫描发现两处漏网——GitHub 仓库名 Instruction-Following-Attention-Head-Sensitive（41 处，可搜索到作者账号）和注释里的 /store01（4 处）；加入替换与禁用模式后重建，邮箱/路径/人名/机构/账号/token 均为零命中；数据文件里的 advisor/professor 是 IFEval 与校准 prompt 原文，无关。
 - **匿名仓库上线（2026-09-24）**：GitHub 私有仓库 sink-hessian-ptq（作者 anon）→ https://anonymous.4open.science/r/sink-hessian-ptq-D7BD ，页面核过：515 个文件、README 正常、无人名。10_statements.tex：Reproducibility 填入链接并把"pre-registration log"改为"job scripts whose headers state each batch prediction"；AI use statement 重写为作者主导、AI 为辅助工具的表述；Ethics 不动。PDF 里最后一个 TODO 消失。
 - **最终编译核对（2026-09-24 14:26 PDF，27 页）**：无 TODO；正文止于第 9 页 477 行（余 8 行）；abstract 压缩版、双 BOS 句、匿名链接、新 AI 声明都在；Fig 4 与 Table 4 同页。Roy 14:25 的改动：Prop 1 的 A_BOS 用 a_0/Σa_t 写（与上文 a_t 定义和 Prop 2 的 a_t 一致），无副作用。
+- **提交前（2026-09-24）**：commit d67b1df（628 文件）；Reproducibility statement 加 "and as supplementary material"，anon_release.zip 作为 OpenReview 附件上传。
 - **不用 3D 柱**：Systematic Outliers Fig 1 的 3D 图画的是 token×channel 的幅值（孤立尖峰）；我们 Fig 4(a) 的 layer×position 里 layer-4 起的高波会遮住 layer-2 的起点格，热图更清楚。
 - **Roy 版本（本地 01:25 同步）审阅**：§5 重写为 Setup / 5.1 Objective mismatch（Prop 1 Position mismatch）/ 5.2 rank-one / 5.3 Signatures / 5.4 levers / 5.5 restore，红色 DISCUSS 块已清除，§5.6 Scope 段被删；同步再次覆盖了我 09-21 补回的内容：A.1 双侧曲率+HVP 跨位置测量、A.2 RMSNorm 引理、κ 对照句、"one step" 句、详细 AI 使用声明（10_statements 回到两句版）。编译检查：无未定义 label/citation，正文散文 5,956 词。待与 Roy 确认后再补：AI 声明（ICLR 2027 必填分类）、A.1/A.2、cross-position 句。
 
